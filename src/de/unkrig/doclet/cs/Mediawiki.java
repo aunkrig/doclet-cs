@@ -49,8 +49,12 @@ import de.unkrig.doclet.cs.CsDoclet.ConsumerWhichThrows;
 
 public class Mediawiki {
 
-    private static final Pattern PRE2 = Pattern.compile("^");
-    private static final Pattern PRE1 = Pattern.compile("<pre>(.*)</pre>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern UNICODE_LINE_BREAK = Pattern.compile("\\r\\a|[\\x0A\\x0B\\x0C\\x0D\\x85\\u2028\\u2029]");
+    private static final Pattern ONE_LEADING_BLANK = Pattern.compile("^ ", Pattern.MULTILINE);
+    private static final Pattern BEGINNING_OF_LINE = Pattern.compile("^", Pattern.MULTILINE);
+    private static final Pattern PRE_BLOCK         = Pattern.compile("<pre>(.*)</pre>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern CODE_DOC_TAG      = Pattern.compile("\\{@code ([^}]*)\\}", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final String  LINE_SEPARATOR    = System.getProperty("line.separator");
 
     public static void
     generate(final RootDoc rootDoc, File todir) throws IOException {
@@ -66,7 +70,7 @@ public class Mediawiki {
                 if (ruleGroup == null && ruleName == null && ruleParent == null) continue;
 
                 CsDoclet.printToFile(
-                    new File(todir, ruleName),
+                    new File(todir, ruleName + ".mw"),
                     Charset.forName("ISO-8859-1"),
                         new ConsumerWhichThrows<PrintWriter, HandledException>() {
 
@@ -75,12 +79,35 @@ public class Mediawiki {
 
                             String ruleDesc = classDoc.commentText();
 
+                            // 'commentText()' returns the text with UNIX line breaks - convert them into the (system
+                            // specific) 'line separator.
+                            ruleDesc = Mediawiki.UNICODE_LINE_BREAK.matcher(ruleDesc).replaceAll(Mediawiki.LINE_SEPARATOR);
+
+                            // It seems like 'commentText()' strips '^ \*' (precisely: '^ *\*+') from all continuation
+                            // lines. In practice, however, people write doc comments such that the prefix is ' * '.
+                            // In other words: 'commentText()' sees the world like this:
+                            //     /**
+                            //      *        FIRST
+                            //      *SECOND
+                            //      *THIRD
+                            //      */
+                            // , while people write
+                            //     /**
+                            //      *        FIRST
+                            // -->  * SECOND
+                            // -->  * THIRD
+                            //      */
+                            // .
+                            ruleDesc = Mediawiki.ONE_LEADING_BLANK.matcher(ruleDesc).replaceAll("");
+
                             if (ruleName == null) {
                                 rootDoc.printError(classDoc.position(), "Doc tag '@cs-rule-name' missing");
                                 throw new HandledException();
                             }
 
                             ruleDesc = this.transformPre(ruleDesc);
+
+                            ruleDesc = this.transformCodeTags(ruleDesc);
 
                             pw.println(ruleDesc);
                             pw.println();
@@ -274,17 +301,39 @@ public class Mediawiki {
                             return sb.toString();
                         }
 
+                        /**
+                         * Must transform PRE blocks into MW 'preformatted text'. MW <i>does</i> handle PRE blocks,
+                         * but it SGML-escapes all entities within it.
+                         */
                         private String
                         transformPre(String s) {
 
-                            Matcher m = Mediawiki.PRE1.matcher(s);
-                            if (!m.find()) return s;
+                            Matcher m = Mediawiki.PRE_BLOCK.matcher(s);
+
+                            if (!m.find()) return s; // Short-circuit.
 
                             StringBuffer sb = new StringBuffer();
                             do {
                                 m.appendReplacement(
                                     sb,
-                                    Mediawiki.PRE2.matcher(m.group(1)).replaceAll(" ")
+                                    Mediawiki.BEGINNING_OF_LINE.matcher(m.group(1)).replaceAll(" ")
+                                );
+                            } while (m.find());
+                            return m.appendTail(sb).toString();
+                        }
+
+                        private String
+                        transformCodeTags(String s) {
+
+                            Matcher m = Mediawiki.CODE_DOC_TAG.matcher(s);
+
+                            if (!m.find()) return s; // Short-circuit.
+
+                            StringBuffer sb = new StringBuffer();
+                            do {
+                                m.appendReplacement(
+                                    sb,
+                                    "<code>" + m.group(1)  + "</code>"
                                 );
                             } while (m.find());
                             return m.appendTail(sb).toString();
