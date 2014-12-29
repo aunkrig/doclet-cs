@@ -192,7 +192,7 @@ class CsDoclet {
                         if (ruleName == null) continue;
 
                         CsDoclet.printToFile(
-                            new File(mediawikiDir, ruleName + ".mw"),
+                            new File(mediawikiDir, ruleName.replaceAll(":\\s+", " ") + ".mw"),
                             Charset.forName("ISO-8859-1"),
                             new ConsumerWhichThrows<PrintWriter, Longjump>() {
 
