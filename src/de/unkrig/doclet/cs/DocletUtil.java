@@ -36,7 +36,7 @@ import com.sun.javadoc.SourcePosition;
 import com.sun.javadoc.Tag;
 
 import de.unkrig.commons.nullanalysis.Nullable;
-import de.unkrig.doclet.cs.Mediawiki.Longjump;
+import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
 /**
  * Utility methods for custom doclets.

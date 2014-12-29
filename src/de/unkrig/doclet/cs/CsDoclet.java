@@ -32,16 +32,14 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
-import java.util.Collection;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.sun.javadoc.ClassDoc;
-import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.PackageDoc;
 import com.sun.javadoc.RootDoc;
 
-import de.unkrig.doclet.cs.Mediawiki.Longjump;
+import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -62,8 +60,10 @@ class CsDoclet {
     public static int
     optionLength(String option) {
 
-        if ("-checkstyle-metadata-dir".equals(option)) return 2;
-        if ("-mediawiki-dir".equals(option))           return 2;
+        if ("-checkstyle-metadata.properties-dir".equals(option)) return 2;
+        if ("-checkstyle-metadata.xml-dir".equals(option))        return 2;
+        if ("-messages.properties-dir".equals(option))            return 2;
+        if ("-mediawiki-dir".equals(option))                      return 2;
 
         return 0;
     }
@@ -75,12 +75,20 @@ class CsDoclet {
     public static boolean
     start(final RootDoc rootDoc) throws IOException {
 
-        File checkstyleMetadataDir = null;
-        File mediawikiDir          = null;
+        File checkstyleMetadataDotPropertiesDir = null;
+        File checkstyleMetadataDotXmlDir        = null;
+        File messagesDotPropertiesDir           = null;
+        File mediawikiDir                       = null;
 
         for (String[] option : rootDoc.options()) {
-            if ("-checkstyle-metadata-dir".equals(option[0])) {
-                checkstyleMetadataDir = new File(option[1]);
+            if ("-checkstyle-metadata.properties-dir".equals(option[0])) {
+                checkstyleMetadataDotPropertiesDir = new File(option[1]);
+            } else
+            if ("-checkstyle-metadata.xml-dir".equals(option[0])) {
+                checkstyleMetadataDotXmlDir = new File(option[1]);
+            } else
+            if ("-messages.properties-dir".equals(option[0])) {
+                messagesDotPropertiesDir = new File(option[1]);
             } else
             if ("-mediawiki-dir".equals(option[0])) {
                 mediawikiDir = new File(option[1]);
@@ -93,9 +101,15 @@ class CsDoclet {
             }
         }
 
-        if (checkstyleMetadataDir == null && mediawikiDir == null) {
+        if (
+            checkstyleMetadataDotPropertiesDir == null
+            && checkstyleMetadataDotXmlDir == null
+            && messagesDotPropertiesDir == null
+            && mediawikiDir == null
+        ) {
             rootDoc.printWarning(
-                "Neither '-checkstyle-metadata-dir' nor '-mediawiki-dir' specified - nothing to be done."
+                "None of '-checkstyle-metadata.properties-dir', '-checkstyle-metadata.xml-dir', "
+                + "'-messages.properties-dir' and '-mediawiki-dir' specified - nothing to be done."
             );
         }
 
@@ -104,7 +118,7 @@ class CsDoclet {
             String checkstylePackage = pd.name();
 
             // Collect all classes in that package.
-            SortedMap<String, ClassDoc> classDocs = new TreeMap<String, ClassDoc>();
+            final SortedMap<String, ClassDoc> classDocs = new TreeMap<String, ClassDoc>();
             for (ClassDoc classDoc : rootDoc.classes()) {
                 String packageName = classDoc.containingPackage().name();
 
@@ -113,20 +127,82 @@ class CsDoclet {
                 }
             }
 
-            // Generate 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' for the package.
-            if (checkstyleMetadataDir != null) {
-                CsDoclet.generateCheckstyleMetadata(
-                    classDocs.values(),
-                    new File(checkstyleMetadataDir, checkstylePackage.replace('.', File.separatorChar)),
-                    rootDoc
+            // Generate 'checkstyle-metadata.properties' for the package.
+            if (checkstyleMetadataDotPropertiesDir != null) {
+
+                CsDoclet.printToFile(
+                    new File(new File(
+                        checkstyleMetadataDotPropertiesDir,
+                        checkstylePackage.replace('.', File.separatorChar)
+                    ), "checkstyle-metadata.properties"),
+                    Charset.forName("ISO-8859-1"),
+                    new ConsumerWhichThrows<PrintWriter, IOException>() {
+
+                        @Override public void
+                        consume(PrintWriter pw) throws IOException {
+                            CheckstyleMetadataDotPropertiesGenerator.generate(classDocs.values(), pw, rootDoc);
+                        }
+                    }
+                );
+            }
+
+            // Generate 'checkstyle-metadata.xml' for the package.
+            if (checkstyleMetadataDotPropertiesDir != null) {
+
+                CsDoclet.printToFile(
+                    new File(new File(
+                        checkstyleMetadataDotPropertiesDir,
+                        checkstylePackage.replace('.', File.separatorChar)
+                    ), "checkstyle-metadata.xml"),
+                    Charset.forName("UTF-8"),
+                    new ConsumerWhichThrows<PrintWriter, IOException>() {
+
+                        @Override public void
+                        consume(final PrintWriter pw) {
+                            CheckstyleMetadataDotXmlGenerator.generate(classDocs.values(), pw, rootDoc);
+                        }
+                    }
+                );
+            }
+
+            if (messagesDotPropertiesDir != null) {
+                CsDoclet.printToFile(
+                    new File(new File(
+                        checkstyleMetadataDotPropertiesDir,
+                        checkstylePackage.replace('.', File.separatorChar)
+                    ), "messages.properties"),
+                    Charset.forName("ISO-8859-1"),
+                    new ConsumerWhichThrows<PrintWriter, IOException>() {
+
+                        @Override public void
+                        consume(PrintWriter pw) {
+                            MessagesDotPropertiesGenerator.generate(classDocs.values(), pw, rootDoc);
+                        }
+                    }
                 );
             }
 
             // Generate MediaWiki markup documents for each class in the package.
             if (mediawikiDir != null) {
-                for (ClassDoc classDoc : classDocs.values()) {
+
+                for (final ClassDoc classDoc : classDocs.values()) {
                     try {
-                        Mediawiki.generate(classDoc, mediawikiDir, rootDoc);
+
+                        final String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", rootDoc);
+                        if (ruleName == null) continue;
+
+                        CsDoclet.printToFile(
+                            new File(mediawikiDir, ruleName + ".mw"),
+                            Charset.forName("ISO-8859-1"),
+                            new ConsumerWhichThrows<PrintWriter, Longjump>() {
+
+                                @Override public void
+                                consume(PrintWriter pw) throws Longjump {
+                                    MediawikiGenerator.generate(classDoc, pw, rootDoc);
+                                }
+                            }
+                        );
+
                     } catch (Longjump e) {
                         ;
                     }
@@ -135,50 +211,6 @@ class CsDoclet {
         }
 
         return true;
-    }
-
-    private static void
-    generateCheckstyleMetadata(
-        final Collection<ClassDoc> classDocs,
-        final File                 todir,
-        final DocErrorReporter     errorReporter
-    ) throws IOException {
-
-        CsDoclet.printToFile(
-            new File(todir, "checkstyle-metadata.xml"),
-            Charset.forName("UTF-8"),
-            new ConsumerWhichThrows<PrintWriter, IOException>() {
-
-                @Override public void
-                consume(final PrintWriter cmx) {
-                    CheckstyleMetadata.checkstyleMetadataXml(classDocs, cmx, errorReporter);
-                }
-            }
-        );
-
-        CsDoclet.printToFile(
-            new File(todir, "checkstyle-metadata.properties"),
-            Charset.forName("ISO-8859-1"),
-            new ConsumerWhichThrows<PrintWriter, IOException>() {
-
-                @Override public void
-                consume(PrintWriter cmp) throws IOException {
-                    CheckstyleMetadata.checkstyleMetadataProperties(classDocs, cmp, errorReporter);
-                }
-            }
-        );
-
-        CsDoclet.printToFile(
-            new File(todir, "messages.properties"),
-            Charset.forName("ISO-8859-1"),
-            new ConsumerWhichThrows<PrintWriter, IOException>() {
-
-                @Override public void
-                consume(PrintWriter mp) {
-                    CheckstyleMetadata.messagesProperties(classDocs, mp, errorReporter);
-                }
-            }
-        );
     }
 
     /**
@@ -227,6 +259,7 @@ class CsDoclet {
         }
     }
 
+    /** @return Whether the given string appears to contain HTML markujp */
     public static boolean
     containsHtmlMarkup(String s) { return s.matches("<\\s*\\w.*>"); }
 }
