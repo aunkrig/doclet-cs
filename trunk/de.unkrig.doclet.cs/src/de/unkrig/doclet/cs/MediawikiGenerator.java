@@ -202,7 +202,7 @@ class MediawikiGenerator {
                     + "]''\""
                 );
                 if (defaultValue != null) {
-                    nav += " (optional; default value is " + defaultValue + ")";
+                    nav += " (optional; default value is \"" + defaultValue + "\")";
                 }
             } else
             {
