@@ -32,6 +32,7 @@ import java.util.Collection;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.FieldDoc;
+import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
@@ -53,7 +54,7 @@ class MessagesDotPropertiesGenerator {
     generate(
         final Collection<ClassDoc> classDocs,
         final PrintWriter          mp,
-        DocErrorReporter           errorReporter
+        RootDoc                    rootDoc
     ) {
 
         mp.printf(
@@ -67,7 +68,7 @@ class MessagesDotPropertiesGenerator {
         for (ClassDoc classDoc : classDocs) {
 
             try {
-                String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", errorReporter);
+                String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", rootDoc);
                 if (ruleName == null) continue;
 
                 mp.printf((
@@ -78,11 +79,11 @@ class MessagesDotPropertiesGenerator {
 
                 for (FieldDoc fd : classDoc.fields()) {
 
-                    String message = DocletUtil.optionalTag(fd, "@cs-message", errorReporter);
+                    String message = DocletUtil.optionalTag(fd, "@cs-message", rootDoc);
                     if (message == null) continue;
 
                     String
-                    messageKey = MessagesDotPropertiesGenerator.getMessageKeyFromConstantValue(fd, errorReporter);
+                    messageKey = MessagesDotPropertiesGenerator.getMessageKeyFromConstantValue(fd, rootDoc);
                     if (messageKey == null) continue;
 
                     mp.printf("%1$-60s = %2$s%n", messageKey, message);

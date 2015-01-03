@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.PackageDoc;
@@ -259,7 +260,8 @@ class CsDoclet {
         }
     }
 
-    /** @return Whether the given string appears to contain HTML markujp */
+    /** @return Whether the given string appears to contain HTML markup */
     public static boolean
-    containsHtmlMarkup(String s) { return s.matches("<\\s*\\w.*>"); }
+    containsHtmlMarkup(String s) { return CsDoclet.CONTAINS_HTML_MARKUP.matcher(s).find(); }
+    private static final Pattern CONTAINS_HTML_MARKUP = Pattern.compile("<\\s*\\w.*>", Pattern.CASE_INSENSITIVE);
 }

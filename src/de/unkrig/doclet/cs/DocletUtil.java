@@ -29,11 +29,7 @@ package de.unkrig.doclet.cs;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.sun.javadoc.Doc;
-import com.sun.javadoc.DocErrorReporter;
-import com.sun.javadoc.Doclet;
-import com.sun.javadoc.SourcePosition;
-import com.sun.javadoc.Tag;
+import com.sun.javadoc.*;
 
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
@@ -95,11 +91,11 @@ class DocletUtil {
     /**
      * Converts JAVADOC markup into MediaWiki markup.
      *
-     * @param sourcePosition Used to report errors
-     * @param errorReporter  Used to report errors
+     * @param ref     The 'current element'; relevant to resolve relative references
+     * @param rootDoc Used to resolve absolute references and to print errors and warnings
      */
     public static String
-    javadocTextToHtml(String s, SourcePosition sourcePosition, DocErrorReporter errorReporter) {
+    javadocTextToHtml(String s, Doc ref, RootDoc rootDoc) throws Longjump {
 
         // Expand inline tags. Inline tags, as of Java 8, are:
         //   {@code text}
@@ -124,13 +120,32 @@ class DocletUtil {
                 if ("code" == tagName) { // SUPPRESS CHECKSTYLE StringLiteralEquality
                     replacement = "<code>" + argument  + "</code>";
                 } else
+                if ("value" == tagName) { // SUPPRESS CHECKSTYLE StringLiteralEquality
+                    Doc doc = DocletUtil.findDoc(argument, rootDoc, ref);
+                    if (!(doc instanceof FieldDoc)) {
+                        rootDoc.printError(doc.position(), "'" + argument + "' does not designate a field");
+                        replacement = argument;
+                    } else {
+                        Object cv = ((FieldDoc) doc).constantValue();
+                        if (cv == null) {
+                            rootDoc.printError(
+                                doc.position(),
+                                "Field '" + argument + "' does not have a constant value"
+                            );
+                            replacement = argument;
+                        } else {
+                            replacement = cv.toString();
+                        }
+                    }
+                } else
                 {
-                    errorReporter.printError(sourcePosition, (
+                    rootDoc.printError(ref.position(), (
                         "Inline tag '{@"
                         + tagName
-                        + "}' is not supported; you could (A) remove it from the text, or (B) improve '"
-                        + Doclet.class.getName()
-                        + "' to transform it into nice HTML (if that is reasonably possible)"
+                        + "}' is not supported; you could "
+                        + "(A) remove it from the text, or "
+                        + "(B) improve 'DocetUtil.javadocTextToHtml()' to transform it into nice HTML (if that is "
+                        + "reasonably possible)"
                     ));
                     replacement = m.group();
                 }
@@ -144,20 +159,30 @@ class DocletUtil {
     }
 
     /**
-     * Verifies that the named tag exists at most <b>once</b>, and replaces line breaks with spaces.
+     * Verifies that the named block tag exists at most <b>once</b>, and replaces line breaks with spaces.
      *
      * @return          {@code null} if the tag does not exist
      * @throws Longjump A probem has occurred and been reported through the given {@code errorReporter}
      */
     @Nullable public static String
-    optionalTag(Doc doc, String tagName, DocErrorReporter errorReporter) throws Longjump {
+    optionalTag(Doc doc, String tagName, RootDoc rootDoc) throws Longjump {
+
         Tag[] tags = doc.tags(tagName);
         if (tags.length == 0) return null;
         if (tags.length > 1) {
-            errorReporter.printError(doc.position(), "'" + tagName + "' must appear at most once");
+            rootDoc.printError(doc.position(), "'" + tagName + "' must appear at most once");
             throw new Longjump();
         }
-        return Pattern.compile("\\s*\n\\s*").matcher(tags[0].text()).replaceAll(" ");
+
+        String s = tags[0].text();
+
+        // Replace all line breaks with spaces.
+        s = Pattern.compile("\\s*\n\\s*").matcher(s).replaceAll(" ");
+
+        // Expand inine tags.
+        s = DocletUtil.javadocTextToHtml(s, doc, rootDoc);
+
+        return s;
     }
 
     /**
@@ -175,5 +200,98 @@ class DocletUtil {
             throw new Longjump();
         }
         return Boolean.valueOf(tags[0].text());
+    }
+
+    /**
+     * @return The {@link Doc} specified by {@code s}, relative to {@code ref}
+     */
+    public static Doc
+    findDoc(String s, RootDoc rootDoc, Doc ref) throws Longjump {
+
+        String where, what;
+        {
+            int hashPos = s.indexOf('#');
+            if (hashPos == -1) {
+                where = s;
+                what  = null;
+            } else
+            if (hashPos == 0) {
+                where = null;
+                what  = s.substring(1);
+            } else
+            {
+                where = s.substring(0, hashPos);
+                what  = s.substring(hashPos + 1);
+            }
+        }
+
+        ClassDoc classScope;
+        if (ref instanceof MemberDoc) {
+            classScope = ((MemberDoc) ref).containingClass();
+        } else
+        if (ref instanceof ClassDoc) {
+            classScope = (ClassDoc) ref;
+        } else
+        {
+            classScope = null;
+        }
+
+        ClassDoc referencedClass = null;
+
+        // Current class?
+        if (where == null) {
+            if (classScope == null) {
+                rootDoc.printError(ref.position(), "No type declaration in scope");
+                throw new Longjump();
+            }
+            referencedClass = classScope;
+        }
+
+        // Member type?
+        if (referencedClass == null && classScope != null) {
+            referencedClass = classScope.findClass(where);
+        }
+
+        // Fully qualified type name?
+        if (referencedClass == null) {
+            referencedClass = rootDoc.classNamed(where);
+        }
+
+        // Type in same package?
+        if (referencedClass == null && classScope != null) {
+            referencedClass = rootDoc.classNamed(classScope.containingPackage().name() + "." + where);
+        }
+
+        // Package?
+        if (referencedClass == null) {
+            PackageDoc referencedPackage = rootDoc.packageNamed(where);
+            if (referencedPackage != null) {
+                if (what != null) {
+                    rootDoc.printError(ref.position(), "Cannot use '#' on package");
+                }
+            }
+        }
+
+        if (referencedClass == null) {
+            rootDoc.printError(ref.position(), "Class '" + where + "' not found");
+            throw new Longjump();
+        }
+
+        where = referencedClass.qualifiedName();
+
+        if (what == null) return referencedClass;
+
+        for (MethodDoc md : referencedClass.methods(false)) {
+            if (what.equals(md.toString())) return md;
+        }
+        for (ConstructorDoc cd : referencedClass.constructors(false)) {
+            if (what.equals(cd.toString())) return cd;
+        }
+        for (FieldDoc fd : referencedClass.fields(false)) {
+            if (what.equals(fd.name())) return fd;
+        }
+
+        rootDoc.printError(ref.position(), "Cannot find '" + what + "' in '" + where + "'");
+        throw new Longjump();
     }
 }

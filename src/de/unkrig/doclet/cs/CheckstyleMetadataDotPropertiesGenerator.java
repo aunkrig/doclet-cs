@@ -39,8 +39,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.sun.javadoc.ClassDoc;
-import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.MethodDoc;
+import com.sun.javadoc.RootDoc;
 
 import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
@@ -61,7 +61,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
     generate(
         final Collection<ClassDoc> classDocs,
         final PrintWriter          cmp,
-        DocErrorReporter           errorReporter
+        RootDoc                    rootDoc
     ) throws IOException {
 
         cmp.printf(
@@ -76,13 +76,13 @@ class CheckstyleMetadataDotPropertiesGenerator {
         for (ClassDoc classDoc : classDocs) {
 
             try {
-                String ruleGroup     = DocletUtil.optionalTag(classDoc, "@cs-rule-group", errorReporter);
-                String ruleGroupName = DocletUtil.optionalTag(classDoc, "@cs-rule-group-name", errorReporter);
+                String ruleGroup     = DocletUtil.optionalTag(classDoc, "@cs-rule-group", rootDoc);
+                String ruleGroupName = DocletUtil.optionalTag(classDoc, "@cs-rule-group-name", rootDoc);
 
                 if (ruleGroup == null && ruleGroupName == null) continue;
 
                 if (ruleGroup == null) {
-                    errorReporter.printError(classDoc.position(), "'@cs-rule-group' doc tag missing");
+                    rootDoc.printError(classDoc.position(), "'@cs-rule-group' doc tag missing");
                     continue;
                 }
 
@@ -93,7 +93,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                 String standardGroupName = CheckstyleMetadataDotPropertiesGenerator.STANDARD_GROUPS.get(ruleGroup);
                 if (standardGroupName == null) {
                     if (ruleGroupName == null) {
-                        errorReporter.printError(classDoc.position(), (
+                        rootDoc.printError(classDoc.position(), (
                             ""
                             + "'@cs-rule-group-name' missing (must be specified because '"
                             + ruleGroup
@@ -109,7 +109,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                         ;
                     } else
                     {
-                        errorReporter.printWarning(classDoc.position(), (
+                        rootDoc.printWarning(classDoc.position(), (
                             ""
                             + "Group name differs from CS's standard group name '"
                             + standardGroupName
@@ -120,7 +120,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
 
                 String existingGroupName = groups.get(ruleGroup);
                 if (existingGroupName != null && !existingGroupName.equals(ruleGroupName)) {
-                    errorReporter.printError(classDoc.position(), (
+                    rootDoc.printError(classDoc.position(), (
                         ""
                         + "You define two different names for rule group '"
                         + ruleGroup
@@ -151,12 +151,12 @@ class CheckstyleMetadataDotPropertiesGenerator {
         for (ClassDoc classDoc : classDocs) {
 
             try {
-                String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", errorReporter);
+                String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", rootDoc);
                 if (ruleName == null) continue;
 
                 String ruleDescription = DocletUtil.commentText(classDoc);
                 if (ruleDescription == null) {
-                    errorReporter.printError(classDoc.position(), "Rule lacks a description");
+                    rootDoc.printError(classDoc.position(), "Rule lacks a description");
                     throw new Longjump();
                 }
 
@@ -173,14 +173,14 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     ruleDescription += String.format("%n%nQuickfixes are available for this check.");
                 }
 
-                ruleDescription = DocletUtil.javadocTextToHtml(ruleDescription, classDoc.position(), errorReporter);
+                ruleDescription = DocletUtil.javadocTextToHtml(ruleDescription, classDoc, rootDoc);
 
                 CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(ruleDescription, cmp);
 
                 for (MethodDoc methodDoc : classDoc.methods()) {
 
-                    String name        = DocletUtil.optionalTag(methodDoc, "@cs-property-name", errorReporter);
-                    String description = DocletUtil.optionalTag(methodDoc, "@cs-property-desc", errorReporter);
+                    String name        = DocletUtil.optionalTag(methodDoc, "@cs-property-name", rootDoc);
+                    String description = DocletUtil.optionalTag(methodDoc, "@cs-property-desc", rootDoc);
 
                     if (name == null && description == null) continue;
 
@@ -191,15 +191,16 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     if (description == null) {
                         description = DocletUtil.commentText(methodDoc);
                         if (description == null) {
-                            errorReporter.printError(methodDoc.position(), (
+                            rootDoc.printError(methodDoc.position(), (
                                 ""
                                 + "Method has neither a comment text nor a '@cs-property-text' tag; "
                                 + "at least one of them must exist (and must not contain HTML markup)"
                             ));
                             continue;
                         }
+                        description = DocletUtil.javadocTextToHtml(description, methodDoc, rootDoc);
                         if (CsDoclet.containsHtmlMarkup(description)) {
-                            errorReporter.printWarning(methodDoc.position(), (
+                            rootDoc.printWarning(methodDoc.position(), (
                                 ""
                                 + "The coment text appears to contain HTML markup. "
                                 + "ECLIPSE-CS cannot handle HTML markup in property descriptions; "
@@ -207,8 +208,9 @@ class CheckstyleMetadataDotPropertiesGenerator {
                             ));
                         }
                     } else {
+                        description = DocletUtil.javadocTextToHtml(description, methodDoc, rootDoc);
                         if (CsDoclet.containsHtmlMarkup(description)) {
-                            errorReporter.printWarning(methodDoc.position(), (
+                            rootDoc.printWarning(methodDoc.position(), (
                                 ""
                                 + "The text after the '@cs-property-desc' tag appears to contain HTML markup; "
                                 + "ECLIPSE-CS cannot handle HTML markup in property descriptions"
@@ -219,15 +221,15 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     // Some consistency checks.
                     String methodName = methodDoc.name();
                     if (!methodName.startsWith("set")) {
-                        errorReporter.printError(methodDoc.position(), "Method is not a setter");
+                        rootDoc.printError(methodDoc.position(), "Method is not a setter");
                         continue;
                     }
                     if (!methodName.substring(3).equalsIgnoreCase(name)) {
-                        errorReporter.printError(methodDoc.position(), "Property name does not match method name");
+                        rootDoc.printError(methodDoc.position(), "Property name does not match method name");
                         continue;
                     }
                     if (methodDoc.parameters().length != 1) {
-                        errorReporter.printError(methodDoc.position(), "Setter must have exactly one parameter");
+                        rootDoc.printError(methodDoc.position(), "Setter must have exactly one parameter");
                         continue;
                     }
 

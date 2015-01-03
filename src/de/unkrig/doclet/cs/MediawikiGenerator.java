@@ -41,6 +41,7 @@ import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.Doc;
 import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.MethodDoc;
+import com.sun.javadoc.RootDoc;
 import com.sun.javadoc.Tag;
 
 import de.unkrig.commons.nullanalysis.Nullable;
@@ -65,11 +66,11 @@ class MediawikiGenerator {
      * @throws Longjump The {@code classDoc} was not processed
      */
     public static void
-    generate(final ClassDoc classDoc, PrintWriter pw, final DocErrorReporter errorReporter) throws Longjump {
+    generate(final ClassDoc classDoc, PrintWriter pw, final RootDoc rootDoc) throws Longjump {
 
-        final String ruleName  = MediawikiGenerator.optionalTag(classDoc, "@cs-rule-name", errorReporter);
+        final String ruleName  = MediawikiGenerator.optionalTag(classDoc, "@cs-rule-name", rootDoc);
         if (ruleName == null) {
-            errorReporter.printError(classDoc.position(), "Doc tag '@cs-rule-name' missing");
+            rootDoc.printError(classDoc.position(), "Doc tag '@cs-rule-name' missing");
             throw new Longjump();
         }
 
@@ -77,18 +78,18 @@ class MediawikiGenerator {
 
         String ruleDesc = DocletUtil.commentText(classDoc);
         if (ruleDesc == null) {
-            errorReporter.printError(classDoc.position(), "Rule lacks a description");
+            rootDoc.printError(classDoc.position(), "Rule lacks a description");
             throw new Longjump();
         }
 
-        ruleDesc = DocletUtil.javadocTextToHtml(ruleDesc, classDoc.position(), errorReporter);
+        ruleDesc = DocletUtil.javadocTextToHtml(ruleDesc, classDoc, rootDoc);
 
         ruleDesc = MediawikiGenerator.htmlToMediawikiMarkup(ruleDesc);
 
         pw.println(ruleDesc);
         pw.println();
 
-        MediawikiGenerator.printProperties(classDoc.methods(), pw, errorReporter);
+        MediawikiGenerator.printProperties(classDoc.methods(), pw, rootDoc);
 
         if (classDoc.tags("@cs-quickfix-classname").length > 0) {
             pw.println("<p>");
@@ -98,18 +99,18 @@ class MediawikiGenerator {
     }
 
     private static void
-    printProperties(final MethodDoc[] methodDocs, PrintWriter pw, final DocErrorReporter errorReporter)
+    printProperties(final MethodDoc[] methodDocs, PrintWriter pw, final RootDoc rootDoc)
     throws Longjump {
 
         boolean firstProperty = true;
         for (MethodDoc methodDoc : methodDocs) {
 
             // SUPPRESS CHECKSTYLE LineLength:7
-            final String name                 = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-name",                   errorReporter);
-            String       datatype             = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-datatype",               errorReporter);
-            final String defaultValue         = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-default-value",          errorReporter);
-            final String overrideDefaultValue = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-override-default-value", errorReporter);
-            final String optionProvider       = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-option-provider",        errorReporter);
+            final String name                 = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-name",                   rootDoc);
+            String       datatype             = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-datatype",               rootDoc);
+            final String defaultValue         = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-default-value",          rootDoc);
+            final String overrideDefaultValue = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-override-default-value", rootDoc);
+            final String optionProvider       = MediawikiGenerator.optionalTag(methodDoc, "@cs-property-option-provider",        rootDoc);
             final Tag[]  valueOptions         = methodDoc.tags("@cs-property-value-option");
 
             if (
@@ -135,9 +136,9 @@ class MediawikiGenerator {
             String description = DocletUtil.commentText(methodDoc);
             if (description == null) {
 
-                description = DocletUtil.optionalTag(methodDoc, "@cs-property-desc", errorReporter);
+                description = DocletUtil.optionalTag(methodDoc, "@cs-property-desc", rootDoc);
                 if (description == null) {
-                    errorReporter.printError(methodDoc.position(), (
+                    rootDoc.printError(methodDoc.position(), (
                         "Method has neither a comment text nor a '@cs-property-text' tag; "
                         + "at least one of them must exist"
                     ));
@@ -148,18 +149,18 @@ class MediawikiGenerator {
             // Some consistency checks.
             String methodName = methodDoc.name();
             if (!methodName.startsWith("set")) {
-                errorReporter.printError(methodDoc.position(), "Method is not a setter");
+                rootDoc.printError(methodDoc.position(), "Method is not a setter");
                 continue;
             }
             if (!methodName.substring(3).equalsIgnoreCase(name)) {
-                errorReporter.printError(
+                rootDoc.printError(
                     methodDoc.position(),
                     "Property name does not match method name"
                 );
                 continue;
             }
             if (methodDoc.parameters().length != 1) {
-                errorReporter.printError(methodDoc.position(), "Setter must have exactly one parameter");
+                rootDoc.printError(methodDoc.position(), "Setter must have exactly one parameter");
                 continue;
             }
 
@@ -180,7 +181,7 @@ class MediawikiGenerator {
                     methodDoc,
                     optionProvider,
                     valueOptions,
-                    errorReporter
+                    rootDoc
                 );
                 nav = name + " = \"" + MediawikiGenerator.catValues(values, defaultValue, " | ") + "\"";
             } else
@@ -189,7 +190,7 @@ class MediawikiGenerator {
                     methodDoc,
                     optionProvider,
                     valueOptions,
-                    errorReporter
+                    rootDoc
                 );
                 String[] defaultValues = defaultValue == null ? new String[0] : defaultValue.split(",");
                 nav = name + " = \"" + MediawikiGenerator.catValues(values, defaultValues, ", ") + "\"";
@@ -209,17 +210,19 @@ class MediawikiGenerator {
                 nav = name + " = \"<i>" + datatype + "</i>\"";
                 if (defaultValue != null) {
                     nav += " (optional; default value is " + defaultValue + ")";
+                } else {
+                    nav += " (mandatory)";
                 }
             }
 
-            String intertitle = DocletUtil.optionalTag(methodDoc, "@cs-intertitle", errorReporter);
+            String intertitle = DocletUtil.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
             if (intertitle != null) {
-                intertitle = DocletUtil.javadocTextToHtml(intertitle, methodDoc.position(), errorReporter);
+                intertitle = DocletUtil.javadocTextToHtml(intertitle, methodDoc, rootDoc);
                 intertitle = MediawikiGenerator.htmlToMediawikiMarkup(intertitle);
                 pw.printf("%1$s%n%n", intertitle);
             }
 
-            description = DocletUtil.javadocTextToHtml(description, methodDoc.position(), errorReporter);
+            description = DocletUtil.javadocTextToHtml(description, methodDoc, rootDoc);
             description = MediawikiGenerator.htmlToMediawikiMarkup(description);
             pw.printf((
                 ""
@@ -359,14 +362,16 @@ class MediawikiGenerator {
     }
 
     @Nullable private static String
-    optionalTag(Doc doc, String tagName, DocErrorReporter errorReporter) throws Longjump {
+    optionalTag(Doc doc, String tagName, RootDoc rootDoc) throws Longjump {
         Tag[] tags = doc.tags(tagName);
         if (tags.length == 0) return null;
         if (tags.length > 1) {
-            errorReporter.printError(doc.position(), "'" + tagName + "' must appear at most once");
+            rootDoc.printError(doc.position(), "'" + tagName + "' must appear at most once");
             throw new Longjump();
         }
-        return tags[0].text();
+        String text = tags[0].text();
+        text = DocletUtil.javadocTextToHtml(text, doc, rootDoc);
+        return text;
     }
 
     /**
