@@ -33,6 +33,7 @@ import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.FieldDoc;
 import com.sun.javadoc.MethodDoc;
+import com.sun.javadoc.RootDoc;
 import com.sun.javadoc.Tag;
 
 import de.unkrig.commons.nullanalysis.Nullable;
@@ -52,7 +53,7 @@ class CheckstyleMetadataDotXmlGenerator {
      * Prints the 'checkstyle-metadata.xml' file.
      */
     public static void
-    generate(final Collection<ClassDoc> classDocs, final PrintWriter pw, DocErrorReporter errorReporter) {
+    generate(final Collection<ClassDoc> classDocs, final PrintWriter pw, RootDoc rootDoc) {
         pw.printf(
             ""
             + "<?xml version=\"1.0\" encoding=\"UTF-8\"?>%n"
@@ -68,9 +69,9 @@ class CheckstyleMetadataDotXmlGenerator {
             try {
 
                 // SUPPRESS CHECKSTYLE LineLength:3
-                String  ruleGroup   = DocletUtil.optionalTag(classDoc, "@cs-rule-group", errorReporter);
-                String  ruleParent  = DocletUtil.optionalTag(classDoc, "@cs-rule-parent", errorReporter);
-                Boolean hasSeverity = DocletUtil.optionalBooleanTag(classDoc, "@cs-rule-has-severity", errorReporter);
+                String  ruleGroup   = DocletUtil.optionalTag(classDoc, "@cs-rule-group", rootDoc);
+                String  ruleParent  = DocletUtil.optionalTag(classDoc, "@cs-rule-parent", rootDoc);
+                Boolean hasSeverity = DocletUtil.optionalBooleanTag(classDoc, "@cs-rule-has-severity", rootDoc);
 
                 if (ruleGroup == null && ruleParent == null) continue;
 
@@ -94,11 +95,19 @@ class CheckstyleMetadataDotXmlGenerator {
                 for (MethodDoc methodDoc : classDoc.methods()) {
 
                     // SUPPRESS CHECKSTYLE LineLength:6
-                    String       propertyName         = DocletUtil.optionalTag(methodDoc, "@cs-property-name",                   errorReporter);
-                    String       datatype             = DocletUtil.optionalTag(methodDoc, "@cs-property-datatype",               errorReporter);
-                    String       defaultValue         = DocletUtil.optionalTag(methodDoc, "@cs-property-default-value",          errorReporter);
-                    String       overrideDefaultValue = DocletUtil.optionalTag(methodDoc, "@cs-property-override-default-value", errorReporter);
-                    final String optionProvider       = DocletUtil.optionalTag(methodDoc, "@cs-property-option-provider",        errorReporter);
+                    String       propertyName         = DocletUtil.optionalTag(methodDoc, "@cs-property-name",                   rootDoc);
+                    String       datatype             = DocletUtil.optionalTag(methodDoc, "@cs-property-datatype",               rootDoc);
+                    String       defaultValue         = DocletUtil.optionalTag(methodDoc, "@cs-property-default-value",          rootDoc);
+//                    String       defaultValue         = null;
+//                    {
+//                        Tag[] t = methodDoc.tags("@see");
+//                        if (t.length > 0) {
+//                            SeeTag st = (SeeTag) t[0];
+//                            defaultValue = String.valueOf(((FieldDoc) st.referencedMember()).constantValue());
+//                        }
+//                    }
+                    String       overrideDefaultValue = DocletUtil.optionalTag(methodDoc, "@cs-property-override-default-value", rootDoc); // SUPPRESS CHECKSTYLE LineLength
+                    final String optionProvider       = DocletUtil.optionalTag(methodDoc, "@cs-property-option-provider",        rootDoc); // SUPPRESS CHECKSTYLE LineLength
                     final Tag[]  valueOptions         = methodDoc.tags("@cs-property-value-option");
 
                     if (
@@ -111,19 +120,19 @@ class CheckstyleMetadataDotXmlGenerator {
                     // Some consistency checks.
                     String methodName = methodDoc.name();
                     if (!methodName.startsWith("set")) {
-                        errorReporter.printError(methodDoc.position(), "Method is not a setter");
+                        rootDoc.printError(methodDoc.position(), "Method is not a setter");
                         continue;
                     }
                     if (!methodName.substring(3).equalsIgnoreCase(propertyName)) {
-                        errorReporter.printError(methodDoc.position(), "Property name does not match method name");
+                        rootDoc.printError(methodDoc.position(), "Property name does not match method name");
                         continue;
                     }
                     if (methodDoc.parameters().length != 1) {
-                        errorReporter.printError(methodDoc.position(), "Setter must have exactly one parameter");
+                        rootDoc.printError(methodDoc.position(), "Setter must have exactly one parameter");
                         continue;
                     }
                     if (optionProvider != null && valueOptions.length > 0) {
-                        errorReporter.printError(
+                        rootDoc.printError(
                             methodDoc.position(),
                             "@cs-property-option-provider and @cs-property-value-option are mutually exclusive"
                         );
@@ -178,11 +187,11 @@ class CheckstyleMetadataDotXmlGenerator {
 
                 for (FieldDoc fd : classDoc.fields()) {
 
-                    String message = DocletUtil.optionalTag(fd, "@cs-message", errorReporter);
+                    String message = DocletUtil.optionalTag(fd, "@cs-message", rootDoc);
                     if (message == null) continue;
 
                     String
-                    messageKey = CheckstyleMetadataDotXmlGenerator.getMessageKeyFromConstantValue(fd, errorReporter);
+                    messageKey = CheckstyleMetadataDotXmlGenerator.getMessageKeyFromConstantValue(fd, rootDoc);
                     if (messageKey == null) continue;
 
                     pw.printf("            <message-key key=\"%s\" />%n", messageKey);
