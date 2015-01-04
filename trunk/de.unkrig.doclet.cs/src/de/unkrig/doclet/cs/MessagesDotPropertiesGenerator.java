@@ -86,7 +86,7 @@ class MessagesDotPropertiesGenerator {
                     messageKey = MessagesDotPropertiesGenerator.getMessageKeyFromConstantValue(fd, rootDoc);
                     if (messageKey == null) continue;
 
-                    mp.printf("%1$-60s = %2$s%n", messageKey, message);
+                    mp.printf("%1$-32s = %2$s%n", messageKey, message);
                 }
             } catch (Longjump c) {
                 ;

@@ -167,7 +167,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     + "%n"
                     + "%2$s.name = %1$s%n"
                     + "%2$s.desc =\\%n"
-                ), ruleName, classDoc.qualifiedName());
+                ), ruleName, classDoc.simpleTypeName());
 
                 if (classDoc.tags("@cs-quickfix-classname").length > 0) {
                     ruleDescription += String.format("%n%nQuickfixes are available for this check.");
@@ -235,8 +235,8 @@ class CheckstyleMetadataDotPropertiesGenerator {
 
                     // Generate property description.
                     cmp.printf(
-                        "%1$-68s = %2$s%n",
-                        classDoc.qualifiedName() + '.' + name,
+                        "%1$-40s = %2$s%n",
+                        classDoc.simpleTypeName() + '.' + name,
                         description
                     );
                 }
