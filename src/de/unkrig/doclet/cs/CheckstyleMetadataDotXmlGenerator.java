@@ -85,7 +85,7 @@ class CheckstyleMetadataDotXmlGenerator {
                     + "            internal-name=\"%2$s\"%n"
                     + "            parent=\"%4$s\"%n"
                     + (hasSeverity == null ? "" : "            hasSeverity=\"%5$s\"%n")
-                    + "            name=\"%%%2$s.name\"%n"
+                    + "            name=\"%%%1$s.name\"%n"
                     + "        >%n"
                     + "            <alternative-name internal-name=\"%2$s\" />%n"
                     + "            <description>%%%2$s.desc</description>%n"
@@ -98,14 +98,6 @@ class CheckstyleMetadataDotXmlGenerator {
                     String       propertyName         = DocletUtil.optionalTag(methodDoc, "@cs-property-name",                   rootDoc);
                     String       datatype             = DocletUtil.optionalTag(methodDoc, "@cs-property-datatype",               rootDoc);
                     String       defaultValue         = DocletUtil.optionalTag(methodDoc, "@cs-property-default-value",          rootDoc);
-//                    String       defaultValue         = null;
-//                    {
-//                        Tag[] t = methodDoc.tags("@see");
-//                        if (t.length > 0) {
-//                            SeeTag st = (SeeTag) t[0];
-//                            defaultValue = String.valueOf(((FieldDoc) st.referencedMember()).constantValue());
-//                        }
-//                    }
                     String       overrideDefaultValue = DocletUtil.optionalTag(methodDoc, "@cs-property-override-default-value", rootDoc); // SUPPRESS CHECKSTYLE LineLength
                     final String optionProvider       = DocletUtil.optionalTag(methodDoc, "@cs-property-option-provider",        rootDoc); // SUPPRESS CHECKSTYLE LineLength
                     final Tag[]  valueOptions         = methodDoc.tags("@cs-property-value-option");
@@ -155,7 +147,7 @@ class CheckstyleMetadataDotXmlGenerator {
                             + "            >%n"
                             + "                <description>%%%1$s.%2$s</description>%n"
                         ),
-                        classDoc.qualifiedName(),
+                        classDoc.simpleTypeName(),
                         propertyName,
                         datatype,
                         defaultValue,
