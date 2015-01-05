@@ -159,6 +159,9 @@ class MediawikiGenerator {
                 );
                 continue;
             }
+            if (datatype == null) {
+                datatype = CsDoclet.guessDatatype(methodDoc, rootDoc);
+            }
             if (methodDoc.parameters().length != 1) {
                 rootDoc.printError(methodDoc.position(), "Setter must have exactly one parameter");
                 continue;
