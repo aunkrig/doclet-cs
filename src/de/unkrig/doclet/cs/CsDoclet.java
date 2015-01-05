@@ -37,8 +37,11 @@ import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import com.sun.javadoc.ClassDoc;
+import com.sun.javadoc.MethodDoc;
 import com.sun.javadoc.PackageDoc;
+import com.sun.javadoc.Parameter;
 import com.sun.javadoc.RootDoc;
+import com.sun.javadoc.Type;
 
 import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
@@ -264,4 +267,38 @@ class CsDoclet {
     public static boolean
     containsHtmlMarkup(String s) { return CsDoclet.CONTAINS_HTML_MARKUP.matcher(s).find(); }
     private static final Pattern CONTAINS_HTML_MARKUP = Pattern.compile("<\\s*\\w.*>", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * @return The data type guessed from the method's argument type
+     */
+    public static String
+    guessDatatype(MethodDoc methodDoc, RootDoc rootDoc) throws Longjump {
+        Parameter[] parameters = methodDoc.parameters();
+        if (parameters.length != 1) {
+            rootDoc.printError(
+                methodDoc.position(),
+                "Cannot guess the property type because the number of parameters is not one"
+            );
+            throw new Longjump();
+        }
+        Type type = parameters[0].type();
+
+        String ts = type.toString();
+        if ("boolean".equals(ts)) return "Boolean";
+        if ("int".equals(ts)) return "Integer";
+        if ("java.lang.String[]".equals(ts) && (
+            methodDoc.tags("@cs-property-option-provider").length
+            + methodDoc.tags("@cs-property-value-option").length
+        ) > 0) return "MultiCheck";
+        if ("java.lang.String".equals(ts) && (
+            methodDoc.tags("@cs-property-option-provider").length
+            + methodDoc.tags("@cs-property-value-option").length
+        ) > 0) return "SingleSelect";
+
+        rootDoc.printError(
+            methodDoc.position(),
+            "Cannot guess the property type from the setter parameter type '" + type + "'"
+        );
+        throw new Longjump();
+    }
 }

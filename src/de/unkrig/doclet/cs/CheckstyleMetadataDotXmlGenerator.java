@@ -123,6 +123,9 @@ class CheckstyleMetadataDotXmlGenerator {
                         rootDoc.printError(methodDoc.position(), "Setter must have exactly one parameter");
                         continue;
                     }
+                    if (datatype == null) {
+                        datatype = CsDoclet.guessDatatype(methodDoc, rootDoc);
+                    }
                     if (optionProvider != null && valueOptions.length > 0) {
                         rootDoc.printError(
                             methodDoc.position(),
