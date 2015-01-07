@@ -30,6 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.sun.javadoc.*;
+import com.sun.javadoc.AnnotationDesc.ElementValuePair;
 
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
@@ -43,10 +44,7 @@ class DocletUtil {
     private DocletUtil() {}
 
     private static final Pattern
-    UNICODE_LINE_BREAK = Pattern.compile("\\r\\a|[\\x0A\\x0B\\x0C\\x0D\\x85\\u2028\\u2029]");
-
-    private static final Pattern
-    ONE_LEADING_BLANK = Pattern.compile("^ ", Pattern.MULTILINE);
+    JAVADOC_LINE_BREAK = Pattern.compile("\\n ?");
 
     private static final Pattern
     DOC_TAG = Pattern.compile("\\{@([^\\s}]+)(?:\\s+([^\\s}][^}]*))?\\}", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
@@ -55,38 +53,38 @@ class DocletUtil {
     public static final String
     LINE_SEPARATOR = System.getProperty("line.separator");
 
-    /**
-     * @return The comment text of the given {@code doc}, trimmed and with the correct line separators
-     */
-    @Nullable public static String
-    commentText(Doc doc) {
-
-        String ct = doc.commentText().trim();
-        if (ct.length() == 0) return null;
-
-        // 'commentText()' returns the text with UNIX line breaks - convert them into the (system specific) 'line
-        // separator'.
-        ct = DocletUtil.UNICODE_LINE_BREAK.matcher(ct).replaceAll(DocletUtil.LINE_SEPARATOR);
-
-        // It seems like 'commentText()' only strips '^ \*' (precisely: '^ *\*+') from all continuation
-        // lines. In practice, however, people write doc comments such that the prefix is ' * '.
-        // In other words: 'commentText()' sees the world like this:
-        //     /**
-        //      *        FIRST
-        //      *SECOND
-        //      *THIRD
-        //      */
-        // , while people write
-        //     /**
-        //      *        FIRST
-        // -->  * SECOND
-        // -->  * THIRD
-        //      */
-        // .
-        ct = DocletUtil.ONE_LEADING_BLANK.matcher(ct).replaceAll("");
-
-        return ct;
-    }
+//    /**
+//     * @return The comment text of the given {@code doc}, trimmed and with the correct line separators
+//     */
+//    @Nullable public static String
+//    commentText(Doc doc) {
+//
+//        String ct = doc.commentText().trim();
+//        if (ct.length() == 0) return null;
+//
+//        // 'commentText()' returns the text with UNIX line breaks - convert them into the (system specific) 'line
+//        // separator'.
+//        ct = DocletUtil.UNICODE_LINE_BREAK.matcher(ct).replaceAll(DocletUtil.LINE_SEPARATOR);
+//
+//        // It seems like 'commentText()' only strips '^ \*' (precisely: '^ *\*+') from all continuation
+//        // lines. In practice, however, people write doc comments such that the prefix is ' * '.
+//        // In other words: 'commentText()' sees the world like this:
+//        //     /**
+//        //      *        FIRST
+//        //      *SECOND
+//        //      *THIRD
+//        //      */
+//        // , while people write
+//        //     /**
+//        //      *        FIRST
+//        // -->  * SECOND
+//        // -->  * THIRD
+//        //      */
+//        // .
+//        ct = DocletUtil.ONE_LEADING_BLANK.matcher(ct).replaceAll("");
+//
+//        return ct;
+//    }
 
     /**
      * Converts JAVADOC markup into MediaWiki markup.
@@ -293,5 +291,171 @@ class DocletUtil {
 
         rootDoc.printError(ref.position(), "Cannot find '" + what + "' in '" + where + "'");
         throw new Longjump();
+    }
+
+    /** @return The annotation with the given simple (unqualified) type name */
+    @Nullable public static AnnotationDesc
+    getAnnotation(ProgramElementDoc doc, String annotationTypeSimpleName) {
+
+        for (AnnotationDesc ad : doc.annotations()) {
+            if (ad.annotationType().simpleTypeName().equals(annotationTypeSimpleName)) return ad;
+        }
+        return null;
+    }
+
+    /** @return The value of the element with the given name */
+    @Nullable public static <T> T
+    getAnnotationElementValue(AnnotationDesc annotationDesc, String elementName, Class<T> clasS) {
+
+        Object result = DocletUtil.getAnnotationElementValue(annotationDesc, elementName);
+        if (result == null) return null;
+
+        if (clasS == String[].class && result instanceof Object[]) {
+            Object[] oa = (Object[]) result;
+            result = new String[oa.length];
+            System.arraycopy(oa, 0, result, 0, oa.length);
+        } else
+        if (clasS == String.class && result instanceof Object[]) {
+            Object[] oa = (Object[]) result;
+            if (oa.length == 0) {
+                result = "";
+            } else
+            if (oa.length == 1) {
+                result = String.valueOf(oa[0]);
+            } else
+            {
+                StringBuilder sb = new StringBuilder().append(oa[0]);
+                for (int i = 1; i < oa.length; i++) {
+                    sb.append(',').append(oa[i]);
+                }
+                result = sb.toString();
+            }
+        }
+
+        assert clasS.isAssignableFrom(result.getClass());
+
+        @SuppressWarnings("unchecked") T tmp = (T) result;
+        return tmp;
+    }
+
+    /** @return The value of the element with the given name */
+    @Nullable public static Object
+    getAnnotationElementValue(AnnotationDesc annotationDesc, String elementName) {
+        for (ElementValuePair evp : annotationDesc.elementValues()) {
+            if (evp.element().name().equals(elementName)) {
+
+                Object o = evp.value().value();
+
+                if (o instanceof AnnotationValue[]) {
+                    AnnotationValue[] avs = (AnnotationValue[]) o;
+
+                    Object[] oa = new Object[avs.length];
+                    for (int i = 0; i < avs.length; i++) oa[i] = avs[i].value();
+                    return oa;
+                }
+
+                return o;
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * Expand inline tags. Inline tags, as of Java 8, are:
+     * <pre>
+     *   &#123;@code text}
+     *   &#123;@docRoot}
+     *   &#123;@inheritDoc}
+     *   &#123;@link package.class#member label}
+     *   &#123;@linkplain package.class#member label}
+     *   &#123;@literal text}
+     *   &#123;@value package.class#field}
+     * </pre>
+     * Only part of these are currently acceptable for the transformation into HTML.
+     */
+    public static String
+    tagsToHtml(Tag[] tags, Doc ref, RootDoc rootDoc) throws Longjump {
+
+        StringBuilder sb = new StringBuilder();
+        for (Tag tag : tags) {
+            if ("Text".equals(tag.name())) {
+                String text = tag.text();
+
+                // Text tags contain UNIX line breaks - convert them into the (system specific) 'line separator'.
+
+                // It seems like JAVADOC only strips '^ *\*+' from all continuation lines. In practice, however, people
+                // write doc comments such that the prefix is ' * '.
+                // In other words: 'commentText()' sees the world like this:
+                //     /**
+                //      *        FIRST
+                //      *SECOND
+                //      *THIRD
+                //      */
+                // , while people write
+                //     /**
+                //      *        FIRST
+                // -->  * SECOND
+                // -->  * THIRD
+                //      */
+                // .
+                text = DocletUtil.JAVADOC_LINE_BREAK.matcher(text).replaceAll(DocletUtil.LINE_SEPARATOR);
+
+                sb.append(text);
+            } else
+            if ("@code".equals(tag.name())) {
+                sb.append("<code>").append(tag.text()).append("</code>");
+            } else
+            if ("@value".equals(tag.name())) {
+                Doc doc = DocletUtil.findDoc(tag.text(), rootDoc, ref);
+                if (!(doc instanceof FieldDoc)) {
+                    rootDoc.printError(doc.position(), "'" + tag.text() + "' does not designate a field");
+                } else {
+                    Object cv = ((FieldDoc) doc).constantValue();
+                    if (cv == null) {
+                        rootDoc.printError(
+                            doc.position(),
+                            "Field '" + tag.text() + "' does not have a constant value"
+                        );
+                    } else {
+                        sb.append(cv);
+                    }
+                }
+            } else
+            {
+                rootDoc.printError(ref.position(), (
+                    "Inline tag '{"
+                    + tag.name()
+                    + "}' is not supported; you could "
+                    + "(A) remove it from the text, or "
+                    + "(B) improve 'DocletUtil.tagsToHtml()' to transform it into nice HTML (if that is "
+                    + "reasonably possible)"
+                ));
+            }
+        }
+
+        return sb.toString();
+    }
+
+    /** @return The class described by the given {@link Type} */
+    public static Class<?>
+    loadType(SourcePosition position, Type t, DocErrorReporter errorReporter) throws Longjump {
+
+        String cn = t.qualifiedTypeName();
+        for (;;) {
+            try {
+                return CsDoclet.class.getClassLoader().loadClass(cn);
+            } catch (Exception e) {
+                int idx = cn.lastIndexOf('.');
+                if (idx == -1) {
+                    errorReporter.printError(
+                        position,
+                        t.qualifiedTypeName() + "': " + e.getMessage()
+                    );
+                    throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
+                }
+                cn = cn.substring(0, idx) + '$' + cn.substring(idx + 1);
+            }
+        }
     }
 }
