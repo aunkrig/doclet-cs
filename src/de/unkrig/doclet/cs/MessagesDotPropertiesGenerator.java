@@ -28,14 +28,11 @@ package de.unkrig.doclet.cs;
 
 import java.io.PrintWriter;
 import java.util.Collection;
+import java.util.Map.Entry;
 
-import com.sun.javadoc.ClassDoc;
-import com.sun.javadoc.DocErrorReporter;
-import com.sun.javadoc.FieldDoc;
 import com.sun.javadoc.RootDoc;
 
-import de.unkrig.commons.nullanalysis.Nullable;
-import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
+import de.unkrig.doclet.cs.CsDoclet.Rule;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -51,11 +48,7 @@ class MessagesDotPropertiesGenerator {
      * Prints the 'checkstyle-metadata.properties' file.
      */
     public static void
-    generate(
-        final Collection<ClassDoc> classDocs,
-        final PrintWriter          mp,
-        RootDoc                    rootDoc
-    ) {
+    generate(final Collection<Rule> rules, final PrintWriter mp, final RootDoc rootDoc) {
 
         mp.printf(
             ""
@@ -65,55 +58,20 @@ class MessagesDotPropertiesGenerator {
             + "# Custom check messages, in alphabetical order.%n"
         );
 
-        for (ClassDoc classDoc : classDocs) {
+        for (Rule rule : rules) {
 
-            try {
-                String ruleName = DocletUtil.optionalTag(classDoc, "@cs-rule-name", rootDoc);
-                if (ruleName == null) continue;
+            mp.printf((
+                ""
+                + "%n"
+                + "# --------------- %1$s ---------------%n"
+            ), rule.name());
 
-                mp.printf((
-                    ""
-                    + "%n"
-                    + "# --------------- %1$s ---------------%n"
-                ), ruleName);
+            for (Entry<String, String> e : rule.messages().entrySet()) {
+                String messageKey = e.getKey();
+                String message    = e.getValue();
 
-                for (FieldDoc fd : classDoc.fields()) {
-
-                    String message = DocletUtil.optionalTag(fd, "@cs-message", rootDoc);
-                    if (message == null) continue;
-
-                    String
-                    messageKey = MessagesDotPropertiesGenerator.getMessageKeyFromConstantValue(fd, rootDoc);
-                    if (messageKey == null) continue;
-
-                    mp.printf("%1$-32s = %2$s%n", messageKey, message);
-                }
-            } catch (Longjump c) {
-                ;
+                mp.printf("%1$-32s = %2$s%n", messageKey, message);
             }
         }
-    }
-
-    @Nullable private static String
-    getMessageKeyFromConstantValue(FieldDoc fd, DocErrorReporter errorReporter) {
-
-        Object o = fd.constantValue();
-        if (o == null) {
-            errorReporter.printError(
-                fd.position(),
-                "Field '" + fd.name() + "' has a '@cs-message' doc tag, but not a constant value"
-            );
-            return null;
-        }
-
-        if (!(o instanceof String)) {
-            errorReporter.printError(
-                fd.position(),
-                "Constant '" + fd.name() + "' must have type 'String'"
-            );
-            return null;
-        }
-
-        return (String) o;
     }
 }
