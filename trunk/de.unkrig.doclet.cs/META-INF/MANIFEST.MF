@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: doclet.cs
+Bundle-SymbolicName: de.unkrig.doclet.cs;singleton:=true
+Bundle-Version: 0.0.0
+Bundle-Vendor: Arno Unkrig
+Require-Bundle: net.sf.eclipsecs.checkstyle,
+ net.sf.eclipsecs.ui,
+ net.sf.eclipsecs.core,
+ org.eclipse.ui.ide
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-ActivationPolicy: lazy
+Eclipse-RegisterBuddy: net.sf.eclipsecs.core,
+ net.sf.eclipsecs.ui
