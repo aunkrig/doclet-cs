@@ -341,7 +341,7 @@ class CsDoclet {
         String simpleName();
 
         /** The 'parent rule', as defined by eclipse-cs */
-        Class<?> parent();
+        String parent();
 
         /** @return The verbose description of this rule; may contain HTML markup */
         String description();
@@ -375,20 +375,18 @@ class CsDoclet {
                 final String   group        = DocletUtil.getAnnotationElementValue(ra, "group",        String.class);
                 final String   groupName    = DocletUtil.getAnnotationElementValue(ra, "groupName",    String.class);
                 final String   name         = DocletUtil.getAnnotationElementValue(ra, "name",         String.class);
-                final Type     rp           = DocletUtil.getAnnotationElementValue(ra, "parent",       Type.class);
+                final String   parent       = DocletUtil.getAnnotationElementValue(ra, "parent",       String.class);
                 final Object[] avs          = DocletUtil.getAnnotationElementValue(ra, "quickfixes",   Object[].class);
                 final Boolean  hasSeverity  = DocletUtil.getAnnotationElementValue(ra, "hasSeverity",  Boolean.class);
 
                 assert group     != null;
                 assert groupName != null;
                 assert name      != null;
-                assert rp        != null;
+                assert parent    != null;
 
                 final String internalName = classDoc.qualifiedTypeName();
 
                 final String simpleName = classDoc.simpleTypeName();
-
-                final Class<?> parent = DocletUtil.loadType(classDoc.position(), rp, rootDoc);
 
                 final String description = DocletUtil.tagsToHtml(classDoc.inlineTags(), classDoc, rootDoc);
 
@@ -409,7 +407,7 @@ class CsDoclet {
                             mr2 = (IMarkerResolution2) qfc.newInstance();
                         } catch (Exception e) {
                             rootDoc.printError(classDoc.position(), "Instantiating quickfix :" + e);
-                            throw new Longjump();
+                            throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
                         }
 
                         final String quickfixClassName   = quickfixType.qualifiedTypeName();
@@ -465,7 +463,7 @@ class CsDoclet {
                     @Override public String                    simpleName()   { return simpleName;   }
                     @Override public String                    name()         { return name;         }
                     @Override public String                    internalName() { return internalName; }
-                    @Override public Class<?>                  parent()       { return parent;       }
+                    @Override public String                    parent()       { return parent;       }
                     @Override public String                    description()  { return description;  }
                     @Override public Collection<RuleProperty>  properties()   { return properties;   }
                     @Override public RuleQuickfix[]            quickfixes()   { return quickfixes;   }
