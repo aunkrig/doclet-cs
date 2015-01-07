@@ -167,7 +167,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
             try {
                 line = br.readLine();
             } catch (IOException e) {
-                throw new AssertionError("StringReader should never throw IOException");
+                throw new AssertionError(e);
             }
             if (line == null) break;
 
