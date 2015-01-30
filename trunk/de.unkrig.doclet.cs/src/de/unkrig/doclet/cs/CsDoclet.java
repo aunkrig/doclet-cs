@@ -201,7 +201,7 @@ class CsDoclet {
                 for (final Rule rule : rules) {
                     try {
                         CsDoclet.printToFile(
-                            new File(mediawikiDir, rule.name().replaceAll(":\\s+", " ") + ".mw"),
+                            new File(mediawikiDir, rule.name().replaceAll(":\\s+", " ") + ".mediawiki"),
                             Charset.forName("ISO-8859-1"),
                             new ConsumerWhichThrows<PrintWriter, Longjump>() {
 
