@@ -46,8 +46,12 @@ import org.eclipse.ui.IMarkerResolution2;
 
 import com.sun.javadoc.*;
 
+import de.unkrig.commons.doclet.Annotations;
+import de.unkrig.commons.doclet.Html;
+import de.unkrig.commons.doclet.Types;
+import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
+import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
-import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -56,12 +60,12 @@ import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 public final
 class CsDoclet {
 
-    private static final Pattern SETTER = Pattern.compile("set[A-Z].*");
-
+    /**
+     * Doclets are never instantiated.
+     */
     private CsDoclet() {}
 
-    /** An object that somehow 'consumes' another object, or objects. */
-    interface ConsumerWhichThrows<T, EX extends Throwable> { void consume(T durable) throws EX; }
+    private static final Pattern SETTER = Pattern.compile("set[A-Z].*");
 
     /**
      * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
@@ -79,7 +83,7 @@ class CsDoclet {
     }
 
     /**
-     * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
+     * See <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
      * Overview"</a>.
      */
     public static boolean
@@ -223,8 +227,6 @@ class CsDoclet {
 
     /**
      * Creates the named {@code file}, lets the {@code printer} print text to it, and closes the file.
-     * <p>
-     *
      *
      * @param charset The charset to be used for printing
      * @throws EX     The throwable that the {@code printer} may throw
@@ -307,7 +309,9 @@ class CsDoclet {
      */
     public static Type
     guessDatatype(MethodDoc methodDoc, RootDoc rootDoc) throws Longjump {
+
         Parameter[] parameters = methodDoc.parameters();
+
         if (parameters.length != 1) {
             rootDoc.printError(
                 methodDoc.position(),
@@ -315,6 +319,7 @@ class CsDoclet {
             );
             throw new Longjump();
         }
+
         return parameters[0].type();
     }
 
@@ -360,122 +365,134 @@ class CsDoclet {
     }
 
     /**
-     * Derives a collection of rules from the given {@code classDocs}.
+     * Derives a collection of CheckStyle rules from the given {@code classDocs}.
      */
     public static Collection<Rule>
     rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc) {
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
         for (final ClassDoc classDoc : classDocs) {
+
+            AnnotationDesc ra = Annotations.get(classDoc, "Rule");
+            if (ra == null) continue;
+
             try {
 
-                AnnotationDesc ra = DocletUtil.getAnnotation(classDoc, "Rule");
-                if (ra == null) continue;
-
-                final String   group        = DocletUtil.getAnnotationElementValue(ra, "group",        String.class);
-                final String   groupName    = DocletUtil.getAnnotationElementValue(ra, "groupName",    String.class);
-                final String   name         = DocletUtil.getAnnotationElementValue(ra, "name",         String.class);
-                final String   parent       = DocletUtil.getAnnotationElementValue(ra, "parent",       String.class);
-                final Object[] avs          = DocletUtil.getAnnotationElementValue(ra, "quickfixes",   Object[].class);
-                final Boolean  hasSeverity  = DocletUtil.getAnnotationElementValue(ra, "hasSeverity",  Boolean.class);
-
-                assert group     != null;
-                assert groupName != null;
-                assert name      != null;
-                assert parent    != null;
-
-                final String internalName = classDoc.qualifiedTypeName();
-
-                final String simpleName = classDoc.simpleTypeName();
-
-                final String description = DocletUtil.tagsToHtml(classDoc.inlineTags(), classDoc, rootDoc);
-
-                final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
-
-                final RuleQuickfix[] quickfixes;
-                if (avs == null) {
-                    quickfixes = new RuleQuickfix[0];
-                } else {
-                    quickfixes = new RuleQuickfix[avs.length];
-                    for (int i = 0; i < avs.length; i++) {
-                        final Type quickfixType = (Type) avs[i];
-
-                        Class<?> qfc = DocletUtil.loadType(classDoc.position(), quickfixType, rootDoc);
-
-                        IMarkerResolution2 mr2;
-                        try {
-                            mr2 = (IMarkerResolution2) qfc.newInstance();
-                        } catch (Exception e) {
-                            rootDoc.printError(classDoc.position(), "Instantiating quickfix :" + e);
-                            throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                        }
-
-                        final String quickfixClassName   = quickfixType.qualifiedTypeName();
-                        final String quickfixLabel       = mr2.getLabel();
-                        final String quickfixDescription = mr2.getDescription();
-
-                        quickfixes[i] = new RuleQuickfix() {
-                            @Override public String className()   { return quickfixClassName;   }
-                            @Override public String label()       { return quickfixLabel;       }
-                            @Override public String description() { return quickfixDescription; }
-                        };
-                    }
-                }
-
-                final SortedMap<String, String> messages = new TreeMap<String, String>();
-                for (FieldDoc fd : classDoc.fields(false)) {
-
-                    AnnotationDesc a = DocletUtil.getAnnotation(fd, "Message");
-                    if (a == null) continue;
-
-                    final String messageKey;
-                    {
-                        Object o = fd.constantValue();
-                        if (o == null) {
-                            rootDoc.printError(
-                                fd.position(),
-                                "Field '" + fd.name() + "' has a '@Message' annotation, but not a constant value"
-                            );
-                            continue;
-                        }
-
-                        if (!(o instanceof String)) {
-                            rootDoc.printError(
-                                fd.position(),
-                                "Constant '" + fd.name() + "' must have type 'String'"
-                            );
-                            continue;
-                        }
-
-                        messageKey = (String) o;
-                    }
-
-                    String message = DocletUtil.getAnnotationElementValue(a, "value", String.class);
-
-                    messages.put(messageKey, message);
-                }
-
-
-                rules.add(new Rule() {
-                    @Override public Doc                       ref()          { return classDoc;     }
-                    @Override public String                    group()        { return group;        }
-                    @Override public String                    groupName()    { return groupName;    }
-                    @Override public String                    simpleName()   { return simpleName;   }
-                    @Override public String                    name()         { return name;         }
-                    @Override public String                    internalName() { return internalName; }
-                    @Override public String                    parent()       { return parent;       }
-                    @Override public String                    description()  { return description;  }
-                    @Override public Collection<RuleProperty>  properties()   { return properties;   }
-                    @Override public RuleQuickfix[]            quickfixes()   { return quickfixes;   }
-                    @Override @Nullable public Boolean         hasSeverity()  { return hasSeverity;  }
-                    @Override public SortedMap<String, String> messages()     { return messages;     }
-                });
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
         }
 
         return rules;
+    }
+
+    /**
+     * Parses a CheckStyle rule.
+     */
+    private static Rule
+    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc) throws Longjump {
+
+        // CHECKSTYLE LineLength:OFF
+        final String   group        = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
+        final String   groupName    = Annotations.getElementValue(ruleAnnotation, "groupName",    String.class);
+        final String   name         = Annotations.getElementValue(ruleAnnotation, "name",         String.class);
+        final String   parent       = Annotations.getElementValue(ruleAnnotation, "parent",       String.class);
+        final Object[] avs          = Annotations.getElementValue(ruleAnnotation, "quickfixes",   Object[].class);
+        final Boolean  hasSeverity  = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
+        // CHECKSTYLE LineLength:ON
+
+        assert group     != null;
+        assert groupName != null;
+        assert name      != null;
+        assert parent    != null;
+
+        final String internalName = classDoc.qualifiedTypeName();
+
+        final String simpleName = classDoc.simpleTypeName();
+
+        final String description = Html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+
+        final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
+
+        final RuleQuickfix[] quickfixes;
+        if (avs == null) {
+            quickfixes = new RuleQuickfix[0];
+        } else {
+            quickfixes = new RuleQuickfix[avs.length];
+            for (int i = 0; i < avs.length; i++) {
+                final Type quickfixType = (Type) avs[i];
+
+                Class<?> qfc = Types.loadType(classDoc.position(), quickfixType, rootDoc);
+
+                IMarkerResolution2 mr2;
+                try {
+                    mr2 = (IMarkerResolution2) qfc.newInstance();
+                } catch (Exception e) {
+                    rootDoc.printError(classDoc.position(), "Instantiating quickfix '" + qfc + "':" + e);
+                    throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
+                }
+
+                final String quickfixClassName   = quickfixType.qualifiedTypeName();
+                final String quickfixLabel       = mr2.getLabel();
+                final String quickfixDescription = mr2.getDescription();
+
+                quickfixes[i] = new RuleQuickfix() {
+                    @Override public String className()   { return quickfixClassName;   }
+                    @Override public String label()       { return quickfixLabel;       }
+                    @Override public String description() { return quickfixDescription; }
+                };
+            }
+        }
+
+        final SortedMap<String, String> messages = new TreeMap<String, String>();
+        for (FieldDoc fd : classDoc.fields(false)) {
+
+            AnnotationDesc a = Annotations.get(fd, "Message");
+            if (a == null) continue;
+
+            final String messageKey;
+            {
+                Object o = fd.constantValue();
+                if (o == null) {
+                    rootDoc.printError(
+                        fd.position(),
+                        "Field '" + fd.name() + "' has a '@Message' annotation, but not a constant value"
+                    );
+                    continue;
+                }
+
+                if (!(o instanceof String)) {
+                    rootDoc.printError(
+                        fd.position(),
+                        "Constant '" + fd.name() + "' must have type 'String'"
+                    );
+                    continue;
+                }
+
+                messageKey = (String) o;
+            }
+
+            String message = Annotations.getElementValue(a, "value", String.class);
+
+            messages.put(messageKey, message);
+        }
+
+
+        return new Rule() {
+            @Override public Doc                       ref()          { return classDoc;     }
+            @Override public String                    group()        { return group;        }
+            @Override public String                    groupName()    { return groupName;    }
+            @Override public String                    simpleName()   { return simpleName;   }
+            @Override public String                    name()         { return name;         }
+            @Override public String                    internalName() { return internalName; }
+            @Override public String                    parent()       { return parent;       }
+            @Override public String                    description()  { return description;  }
+            @Override public Collection<RuleProperty>  properties()   { return properties;   }
+            @Override public RuleQuickfix[]            quickfixes()   { return quickfixes;   }
+            @Override @Nullable public Boolean         hasSeverity()  { return hasSeverity;  }
+            @Override public SortedMap<String, String> messages()     { return messages;     }
+        };
     }
 
     /** Representation of a property of a rule. */
@@ -544,21 +561,21 @@ class CsDoclet {
 
             // Is this the setter for a property?
             // For possible 'datatype's see "http://eclipse-cs.sourceforge.net/dtds/checkstyle-metadata_1_1.dtd"
-            AnnotationDesc rpa = DocletUtil.getAnnotation(methodDoc, "BooleanRuleProperty");
-            if (rpa == null) rpa = DocletUtil.getAnnotation(methodDoc, "StringRuleProperty");
-            if (rpa == null) rpa = DocletUtil.getAnnotation(methodDoc, "MultiCheckRuleProperty");
-            if (rpa == null) rpa = DocletUtil.getAnnotation(methodDoc, "SingleSelectRuleProperty");
-            if (rpa == null) rpa = DocletUtil.getAnnotation(methodDoc, "RegexRuleProperty");
-            if (rpa == null) rpa = DocletUtil.getAnnotation(methodDoc, "IntegerRuleProperty");
+            AnnotationDesc rpa = Annotations.get(methodDoc, "BooleanRuleProperty");
+            if (rpa == null) rpa = Annotations.get(methodDoc, "StringRuleProperty");
+            if (rpa == null) rpa = Annotations.get(methodDoc, "MultiCheckRuleProperty");
+            if (rpa == null) rpa = Annotations.get(methodDoc, "SingleSelectRuleProperty");
+            if (rpa == null) rpa = Annotations.get(methodDoc, "RegexRuleProperty");
+            if (rpa == null) rpa = Annotations.get(methodDoc, "IntegerRuleProperty");
             if (rpa == null) continue;
 
             // Determine the (optional) 'intertitle', which is useful to form groups of properties in a documentation.
-            final String intertitle = DocletUtil.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
+            final String intertitle = Html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
 
             // Determine the property name.
             final String propertyName;
             {
-                String n = DocletUtil.getAnnotationElementValue(rpa, "name", String.class);
+                String n = Annotations.getElementValue(rpa, "name", String.class);
                 if (n == null) {
                     String methodName = methodDoc.name();
                     if (!CsDoclet.SETTER.matcher(methodName).matches()) {
@@ -571,18 +588,18 @@ class CsDoclet {
             }
 
             // Determine short and long description.
-            final String shortDescription = DocletUtil.tagsToHtml(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
-            final String longDescription  = DocletUtil.tagsToHtml(methodDoc.inlineTags(),        methodDoc, rootDoc);
+            final String shortDescription = Html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
+            final String longDescription  = Html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
 
             // Determine the (optional) option provider.
             final Class<?> optionProvider;
             {
-                final Type t = DocletUtil.getAnnotationElementValue(rpa, "optionProvider", Type.class);
-                optionProvider = t == null ? null : DocletUtil.loadType(methodDoc.position(), t, rootDoc);
+                final Type t = Annotations.getElementValue(rpa, "optionProvider", Type.class);
+                optionProvider = t == null ? null : Types.loadType(methodDoc.position(), t, rootDoc);
             }
 
             // Determine the (optional) value options.
-            final String[] valueOptions = DocletUtil.getAnnotationElementValue(rpa, "valueOptions", String[].class);
+            final String[] valueOptions = Annotations.getElementValue(rpa, "valueOptions", String[].class);
 
             if (optionProvider != null && valueOptions != null) {
                 rootDoc.printError(
@@ -600,13 +617,15 @@ class CsDoclet {
             }
 
             // Determine the default values.
-            final Object defaultValue         = DocletUtil.getAnnotationElementValue(rpa, "defaultValue", String.class);
-            final String overrideDefaultValue = DocletUtil.getAnnotationElementValue(rpa, "overrideDefaultValue", String.class); // SUPPRESS CHECKSTYLE LineLength
+            final Object
+            defaultValue = Annotations.getElementValue(rpa, "defaultValue", String.class);
+            final String
+            overrideDefaultValue = Annotations.getElementValue(rpa, "overrideDefaultValue", String.class);
 
             properties.add(new RuleProperty() {
 
                 @Override @Nullable public String   intertitle()           { return intertitle;           }
-                @Override public Doc                ref()                  { return methodDoc; }
+                @Override public Doc                ref()                  { return methodDoc;            }
                 @Override public String             name()                 { return propertyName;         }
                 @Override public String             shortDescription()     { return shortDescription;     }
                 @Override public String             longDescription()      { return longDescription;      }
