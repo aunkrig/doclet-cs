@@ -37,10 +37,11 @@ import java.util.TreeMap;
 
 import com.sun.javadoc.RootDoc;
 
+import de.unkrig.commons.doclet.Html;
+import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
 import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
-import de.unkrig.doclet.cs.MediawikiGenerator.Longjump;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -136,7 +137,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     description += String.format("</dl>");
                 }
 
-                description = DocletUtil.javadocTextToHtml(description, rule.ref(), rootDoc);
+                description = Html.fromJavadocText(description, rule.ref(), rootDoc);
 
                 CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(description, pw);
 
