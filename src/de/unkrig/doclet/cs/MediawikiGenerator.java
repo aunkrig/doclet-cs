@@ -31,8 +31,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
@@ -42,6 +40,7 @@ import com.sun.javadoc.RootDoc;
 import com.sun.javadoc.SourcePosition;
 
 import de.unkrig.commons.doclet.Html;
+import de.unkrig.commons.doclet.Mediawiki;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
@@ -56,16 +55,6 @@ class MediawikiGenerator {
 
     private MediawikiGenerator() {}
 
-    private static final Pattern
-    PRE_BLOCK = Pattern.compile("\\s*<pre>\\s*(.*?)\\s*</pre>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-
-    private static final Pattern
-    BEGINNING_OF_LINE = Pattern.compile("^", Pattern.MULTILINE);
-
-    /** The value of the 'line.separator' system property. */
-    private static final String
-    LINE_SEPARATOR = System.getProperty("line.separator");
-
     /**
      * Generates a MediaWiki markup document files in {@code todir} for the given {@code classDoc}.
      */
@@ -76,7 +65,7 @@ class MediawikiGenerator {
 
         String ruleDesc = Html.fromJavadocText(rule.description(), rule.ref(), rootDoc);
 
-        ruleDesc = MediawikiGenerator.htmlToMediawikiMarkup(ruleDesc);
+        ruleDesc = Mediawiki.fromHtml(ruleDesc);
 
         pw.println(ruleDesc);
         pw.println();
@@ -185,14 +174,14 @@ class MediawikiGenerator {
             if (intertitle != null) {
                 try {
                     intertitle = Html.fromJavadocText(intertitle, ref, rootDoc);
-                    intertitle = MediawikiGenerator.htmlToMediawikiMarkup(intertitle);
+                    intertitle = Mediawiki.fromHtml(intertitle);
                     pw.printf("%1$s%n%n", intertitle);
                 } catch (Longjump de) {
                     ; // SUPPRESS CHECKSTYLE AvoidHidingCause
                 }
             }
 
-            String longDescription = MediawikiGenerator.htmlToMediawikiMarkup(property.longDescription());
+            String longDescription = Mediawiki.fromHtml(property.longDescription());
 
             pw.printf((
                 ""
@@ -302,33 +291,5 @@ class MediawikiGenerator {
             sb.append(glue);
         }
         return sb.toString();
-    }
-
-    /**
-     * Converts an HTML document into <a href="http://www.mediawiki.org/wiki/Help:Formatting">MediaWiki markup</a>.
-     */
-    public static String
-    htmlToMediawikiMarkup(String s) {
-
-        // Must transform PRE blocks into MW 'preformatted text'. MW <i>does</i> handle PRE blocks,
-        // but it SGML-escapes all entities within it.
-        PRE_BLOCKS: {
-            Matcher m = MediawikiGenerator.PRE_BLOCK.matcher(s);
-
-            if (!m.find()) break PRE_BLOCKS;
-
-            StringBuffer sb = new StringBuffer();
-            do {
-                String replacement = (
-                    MediawikiGenerator.LINE_SEPARATOR
-                    + MediawikiGenerator.BEGINNING_OF_LINE.matcher(m.group(1)).replaceAll(" ")
-                    + MediawikiGenerator.LINE_SEPARATOR
-                );
-                m.appendReplacement(sb, replacement);
-            } while (m.find());
-            s = m.appendTail(sb).toString();
-        }
-
-        return s;
     }
 }
