@@ -40,10 +40,6 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
-
-import org.eclipse.ui.IMarkerResolution2;
-
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
@@ -59,6 +55,8 @@ import de.unkrig.commons.nullanalysis.Nullable;
  */
 public final
 class CsDoclet {
+
+    private static Html html = new Html();
 
     /**
      * Doclets are never instantiated.
@@ -411,7 +409,7 @@ class CsDoclet {
 
         final String simpleName = classDoc.simpleTypeName();
 
-        final String description = Html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+        final String description = CsDoclet.html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
 
         final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
 
@@ -570,7 +568,7 @@ class CsDoclet {
             if (rpa == null) continue;
 
             // Determine the (optional) 'intertitle', which is useful to form groups of properties in a documentation.
-            final String intertitle = Html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
+            final String intertitle = CsDoclet.html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
 
             // Determine the property name.
             final String propertyName;
@@ -588,8 +586,8 @@ class CsDoclet {
             }
 
             // Determine short and long description.
-            final String shortDescription = Html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
-            final String longDescription  = Html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
+            final String shortDescription = CsDoclet.html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
+            final String longDescription  = CsDoclet.html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
 
             // Determine the (optional) option provider.
             final Class<?> optionProvider;

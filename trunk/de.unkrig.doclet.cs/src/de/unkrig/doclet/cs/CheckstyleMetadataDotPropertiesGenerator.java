@@ -51,6 +51,8 @@ import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
 public final
 class CheckstyleMetadataDotPropertiesGenerator {
 
+    private static Html html = new Html();
+
     private CheckstyleMetadataDotPropertiesGenerator() {}
 
     /**
@@ -137,7 +139,11 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     description += String.format("</dl>");
                 }
 
-                description = Html.fromJavadocText(description, rule.ref(), rootDoc);
+                description = CheckstyleMetadataDotPropertiesGenerator.html.fromJavadocText(
+                    description,
+                    rule.ref(),
+                    rootDoc
+                );
 
                 CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(description, pw);
 
