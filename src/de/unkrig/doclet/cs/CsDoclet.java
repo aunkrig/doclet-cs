@@ -65,6 +65,8 @@ class CsDoclet {
 
     private static final Pattern SETTER = Pattern.compile("set[A-Z].*");
 
+    public static LanguageVersion languageVersion() { return LanguageVersion.JAVA_1_5; }
+
     /**
      * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
      * Overview"</a>.
