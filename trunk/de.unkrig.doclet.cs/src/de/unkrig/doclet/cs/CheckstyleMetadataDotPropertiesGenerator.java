@@ -37,7 +37,7 @@ import java.util.TreeMap;
 
 import com.sun.javadoc.RootDoc;
 
-import de.unkrig.commons.doclet.Html;
+import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
@@ -51,7 +51,7 @@ import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
 public final
 class CheckstyleMetadataDotPropertiesGenerator {
 
-    private static Html html = new Html();
+    private static Html html = new Html(Html.STANDARD_LINK_MAKER);
 
     private CheckstyleMetadataDotPropertiesGenerator() {}
 
