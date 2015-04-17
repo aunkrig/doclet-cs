@@ -43,8 +43,8 @@ import java.util.regex.Pattern;
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
-import de.unkrig.commons.doclet.Html;
 import de.unkrig.commons.doclet.Types;
+import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
@@ -56,7 +56,7 @@ import de.unkrig.commons.nullanalysis.Nullable;
 public final
 class CsDoclet {
 
-    private static Html html = new Html();
+    private static Html html = new Html(Html.STANDARD_LINK_MAKER);
 
     /**
      * Doclets are never instantiated.
