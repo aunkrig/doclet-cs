@@ -36,12 +36,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 import org.eclipse.ui.IMarkerResolution2;
 
@@ -53,6 +52,7 @@ import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -151,7 +151,8 @@ class CsDoclet {
                 }
             }
 
-            final Collection<Rule> rules = CsDoclet.rules(classDocs.values(), rootDoc);
+            final SortedMap<String, String> messages = new TreeMap<String, String>();
+            final Collection<Rule> rules = CsDoclet.rules(classDocs.values(), rootDoc, messages);
 
             // Generate 'checkstyle-metadata.properties' for the package.
             if (checkstyleMetadataDotPropertiesDir != null) {
@@ -203,7 +204,7 @@ class CsDoclet {
 
                         @Override public void
                         consume(PrintWriter pw) {
-                            MessagesDotPropertiesGenerator.generate(rules, pw, rootDoc);
+                            MessagesDotPropertiesGenerator.generate(messages, pw, rootDoc);
                         }
                     }
                 );
@@ -369,16 +370,13 @@ class CsDoclet {
 
         /** @return Whether this rule has a severity; typically checks do, and filters don't */
         @Nullable Boolean hasSeverity();
-
-        /** @return The default localized messages of this rule */
-        SortedMap<String, String> messages();
     }
 
     /**
      * Derives a collection of CheckStyle rules from the given {@code classDocs}.
      */
     public static Collection<Rule>
-    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc) {
+    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Map<String, String> messages) {
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
         for (final ClassDoc classDoc : classDocs) {
@@ -388,7 +386,7 @@ class CsDoclet {
 
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc));
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, messages));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -401,7 +399,8 @@ class CsDoclet {
      * Parses a CheckStyle rule.
      */
     private static Rule
-    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc) throws Longjump {
+    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc, Map<String, String> messages)
+	throws Longjump {
 
         // CHECKSTYLE LineLength:OFF
         final String   group        = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
@@ -455,39 +454,55 @@ class CsDoclet {
             }
         }
 
-        final SortedMap<String, String> messages = new TreeMap<String, String>();
-        for (FieldDoc fd : classDoc.fields(false)) {
+        for (ClassDoc cd = classDoc; cd != null; cd = cd.superclass()) {
+	        for (FieldDoc fd : cd.fields(false)) {
 
-            AnnotationDesc a = Annotations.get(fd, "Message");
-            if (a == null) continue;
+	            AnnotationDesc a = Annotations.get(fd, "Message");
+	            if (a == null) continue;
 
-            final String messageKey;
-            {
-                Object o = fd.constantValue();
-                if (o == null) {
-                    rootDoc.printError(
-                        fd.position(),
-                        "Field '" + fd.name() + "' has a '@Message' annotation, but not a constant value"
-                    );
-                    continue;
-                }
+	            final String messageKey;
+	            {
+	                Object o = fd.constantValue();
+	                if (o == null) {
+	                    rootDoc.printError(
+	                        fd.position(),
+	                        "Field '" + fd.name() + "' has a '@Message' annotation, but not a constant value"
+	                    );
+	                    continue;
+	                }
 
-                if (!(o instanceof String)) {
-                    rootDoc.printError(
-                        fd.position(),
-                        "Constant '" + fd.name() + "' must have type 'String'"
-                    );
-                    continue;
-                }
+	                if (!(o instanceof String)) {
+	                    rootDoc.printError(
+	                        fd.position(),
+	                        "Constant '" + fd.name() + "' must have type 'String'"
+	                    );
+	                    continue;
+	                }
 
-                messageKey = (String) o;
-            }
+	                messageKey = (String) o;
+	            }
 
-            String message = Annotations.getElementValue(a, "value", String.class);
+	            String message = Annotations.getElementValue(a, "value", String.class);
+	            if (message == null) {
+	            	rootDoc.printError(fd.position(), "Message lacks a default text");
+	            	continue;
+	            }
 
-            messages.put(messageKey, message);
+	            String orig = messages.put(messageKey, message);
+
+	            if (orig != null && !message.equals(orig)) {
+	            	rootDoc.printError(fd.position(), (
+            			"Inconsistent redefinition of message \""
+    					+ messageKey
+    					+ "\": Previously \""
+    					+ orig
+    					+ "\", now \""
+    					+ message
+    					+ "\""
+        			));
+	            }
+	        }
         }
-
 
         return new Rule() {
             @Override public Doc                       ref()          { return classDoc;     }
@@ -501,7 +516,6 @@ class CsDoclet {
             @Override public Collection<RuleProperty>  properties()   { return properties;   }
             @Override public RuleQuickfix[]            quickfixes()   { return quickfixes;   }
             @Override @Nullable public Boolean         hasSeverity()  { return hasSeverity;  }
-            @Override public SortedMap<String, String> messages()     { return messages;     }
         };
     }
 
