@@ -35,10 +35,15 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
+
+import org.eclipse.ui.IMarkerResolution2;
 
 import com.sun.javadoc.*;
 
@@ -88,6 +93,11 @@ class CsDoclet {
      */
     public static boolean
     start(final RootDoc rootDoc) throws IOException {
+
+        // Because "IMarkerResolution2.getLabel()" and "IMarkerResolution2.getDescription()" eventually use "NLS",
+        // we have to change the default locale to "ENGLISH", because we want the quickfixes' labels and descriptions
+        // in english.
+        Locale.setDefault(Locale.ENGLISH);
 
         File checkstyleMetadataDotPropertiesDir = null;
         File checkstyleMetadataDotXmlDir        = null;
