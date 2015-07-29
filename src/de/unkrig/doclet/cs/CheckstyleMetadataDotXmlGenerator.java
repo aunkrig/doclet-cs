@@ -131,9 +131,9 @@ class CheckstyleMetadataDotXmlGenerator {
                 }
             }
 
-//            for (String messageKey : rule.messages().keySet()) {
-//                pw.printf("            <message-key key=\"%s\" />%n", messageKey);
-//            }
+            for (String messageKey : rule.messages().keySet()) {
+                pw.printf("            <message-key key=\"%s\" />%n", messageKey);
+            }
 
             pw.printf((
                 ""
