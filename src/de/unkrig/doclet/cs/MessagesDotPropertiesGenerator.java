@@ -27,10 +27,14 @@
 package de.unkrig.doclet.cs;
 
 import java.io.PrintWriter;
-import java.util.Map;
+import java.util.Collection;
 import java.util.Map.Entry;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import com.sun.javadoc.RootDoc;
+
+import de.unkrig.doclet.cs.CsDoclet.Rule;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -46,7 +50,7 @@ class MessagesDotPropertiesGenerator {
      * Prints the 'checkstyle-metadata.properties' file.
      */
     public static void
-    generate(final Map<String, String> messages, final PrintWriter mp, final RootDoc rootDoc) {
+    generate(final Collection<Rule> rules, final PrintWriter mp, final RootDoc rootDoc) {
 
         mp.printf(
             ""
@@ -56,9 +60,32 @@ class MessagesDotPropertiesGenerator {
             + "# Custom check messages, in alphabetical order.%n"
         );
 
-        for (Entry<String, String> e : messages.entrySet()) {
-        	String messageKey = e.getKey();
-        	String message    = e.getValue();
+        SortedMap<String, String> allMessages = new TreeMap<String, String>();
+        for (Rule rule : rules) {
+            for (Entry<String, String> e : rule.messages().entrySet()) {
+                String messageKey = e.getKey();
+                String message    = e.getValue();
+
+                String orig = allMessages.put(messageKey, message);
+                if (orig != null && !message.equals(orig)) {
+                    rootDoc.printError((
+                        "Rule \""
+                        + rule.name()
+                        + "\" redefines message \""
+                        + messageKey
+                        + "\" inconsistently; previously \""
+                        + orig
+                        + "\", now \""
+                        + message
+                        + "\""
+                    ));
+                }
+            }
+        }
+
+        for (Entry<String, String> e : allMessages.entrySet()) {
+            String messageKey = e.getKey();
+            String message    = e.getValue();
 
             mp.printf("%1$-32s = %2$s%n", messageKey, message);
         }
