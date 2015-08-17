@@ -48,6 +48,7 @@ import org.eclipse.ui.IMarkerResolution2;
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
+import de.unkrig.commons.doclet.Docs;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
@@ -151,7 +152,12 @@ class CsDoclet {
                 }
             }
 
-            final Collection<Rule> rules = CsDoclet.rules(classDocs.values(), rootDoc);
+            final Collection<Rule> rules;
+            try {
+                rules = CsDoclet.rules(classDocs.values(), rootDoc);
+            } catch (Longjump l) {
+                break;
+            }
 
             // Generate 'checkstyle-metadata.properties' for the package.
             if (checkstyleMetadataDotPropertiesDir != null) {
@@ -215,7 +221,10 @@ class CsDoclet {
                 for (final Rule rule : rules) {
                     try {
                         CsDoclet.printToFile(
-                            new File(mediawikiDir, rule.name().replaceAll(":\\s+", " ") + ".mediawiki"),
+                            new File(
+                                new File(mediawikiDir, rule.family()),
+                                rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
+                            ),
                             Charset.forName("ISO-8859-1"),
                             new ConsumerWhichThrows<PrintWriter, Longjump>() {
 
@@ -248,7 +257,11 @@ class CsDoclet {
         ConsumerWhichThrows<PrintWriter, EX> printer
     ) throws IOException, EX {
 
-        File newFile = new File(file.getParentFile(), "." + file.getName() + ".new");
+        File directory = file.getParentFile();
+
+        directory.mkdirs();
+
+        File newFile = new File(directory, "." + file.getName() + ".new");
 
         PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(newFile), charset));
         try {
@@ -340,6 +353,9 @@ class CsDoclet {
         /** @return The doc comment to which this rule is related */
         Doc ref();
 
+        /** @return The family to which this rule belongs ("checks" or "filters") */
+        String family();
+
         /** @return The ID of the group to which this rule belongs */
         String group();
 
@@ -378,7 +394,10 @@ class CsDoclet {
      * Derives a collection of CheckStyle rules from the given {@code classDocs}.
      */
     public static Collection<Rule>
-    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc) {
+    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc) throws Longjump {
+
+        ClassDoc checkClass  = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
+        ClassDoc filterClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
         for (final ClassDoc classDoc : classDocs) {
@@ -386,9 +405,21 @@ class CsDoclet {
             AnnotationDesc ra = Annotations.get(classDoc, "Rule");
             if (ra == null) continue;
 
+            String family;
+            if (Docs.isSubclassOf(classDoc, checkClass)) {
+                family = "checks";
+            } else
+            if (Docs.isSubclassOf(classDoc, filterClass)) {
+                family = "filters";
+            } else
+            {
+                rootDoc.printError(classDoc.position(), "Rule cannot be identified as a check or a filter");
+                continue;
+            }
+
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc));
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, family));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -401,7 +432,8 @@ class CsDoclet {
      * Parses a CheckStyle rule.
      */
     private static Rule
-    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc) throws Longjump {
+    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc, final String family)
+    throws Longjump {
 
         // CHECKSTYLE LineLength:OFF
         final String   group        = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
@@ -508,6 +540,7 @@ class CsDoclet {
 
         return new Rule() {
             @Override public Doc                       ref()          { return classDoc;     }
+            @Override public String                    family()       { return family;       }
             @Override public String                    group()        { return group;        }
             @Override public String                    groupName()    { return groupName;    }
             @Override public String                    simpleName()   { return simpleName;   }
