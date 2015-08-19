@@ -41,8 +41,6 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
-
 import org.eclipse.ui.IMarkerResolution2;
 
 import com.sun.javadoc.*;
@@ -61,6 +59,7 @@ import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
 import de.unkrig.doclet.cs.html.templates.RuleHtml;
 import de.unkrig.notemplate.NoTemplate;
 import de.unkrig.notemplate.javadocish.Options;
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -309,7 +308,7 @@ class CsDoclet {
 
             NoTemplate.render(
                 RuleHtml.class,
-                new File(options.destination, rule.family() + '/' + rule.name() + ".html"),
+                new File(options.destination, rule.family() + '/' + rule.name().replace(':', '_') + ".html"),
                 (RuleHtml ruleHtml) -> {
                     ruleHtml.render(rule, CsDoclet.HTML, rootDoc, options);
                 }
