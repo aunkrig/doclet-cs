@@ -51,9 +51,16 @@ import de.unkrig.commons.doclet.Annotations;
 import de.unkrig.commons.doclet.Docs;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
+import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
+import de.unkrig.doclet.cs.html.templates.AllRulesFrameHtml;
+import de.unkrig.doclet.cs.html.templates.IndexHtml;
+import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
+import de.unkrig.doclet.cs.html.templates.RuleHtml;
+import de.unkrig.notemplate.NoTemplate;
+import de.unkrig.notemplate.javadocish.Options;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -62,7 +69,7 @@ import de.unkrig.commons.nullanalysis.Nullable;
 public final
 class CsDoclet {
 
-    private static Html html = new Html(Html.STANDARD_LINK_MAKER);
+    private static final Html HTML = new Html(Html.STANDARD_LINK_MAKER);
 
     /**
      * Doclets are never instantiated.
@@ -80,6 +87,17 @@ class CsDoclet {
     public static int
     optionLength(String option) {
 
+        // Options that go into the "Options" object:
+        if ("-d".equals(option))           return 2;
+        if ("-windowtitle".equals(option)) return 2;
+        if ("-doctitle".equals(option))    return 2;
+        if ("-header".equals(option))      return 2;
+        if ("-footer".equals(option))      return 2;
+        if ("-top".equals(option))         return 2;
+        if ("-bottom".equals(option))      return 2;
+        if ("-notimestamp".equals(option)) return 1;
+
+        // "Other" options:
         if ("-checkstyle-metadata.properties-dir".equals(option)) return 2;
         if ("-checkstyle-metadata.xml-dir".equals(option))        return 2;
         if ("-messages.properties-dir".equals(option))            return 2;
@@ -100,12 +118,44 @@ class CsDoclet {
         // in english.
         Locale.setDefault(Locale.ENGLISH);
 
-        File checkstyleMetadataDotPropertiesDir = null;
-        File checkstyleMetadataDotXmlDir        = null;
-        File messagesDotPropertiesDir           = null;
-        File mediawikiDir                       = null;
+        boolean generateHtml = false;
+        Options options      = new Options();
+
+        File    checkstyleMetadataDotPropertiesDir = null;
+        File    checkstyleMetadataDotXmlDir        = null;
+        File    messagesDotPropertiesDir           = null;
+        File    mediawikiDir                       = null;
 
         for (String[] option : rootDoc.options()) {
+
+            // Options that go into the "Options" object:
+            if ("-d".equals(option[0])) {
+                options.destination = new File(option[1]);
+                generateHtml        = true;
+            } else
+            if ("-windowtitle".equals(option[0])) {
+                options.windowTitle = option[1];
+            } else
+            if ("-doctitle".equals(option[0])) {
+                options.docTitle = option[1];
+            } else
+            if ("-header".equals(option[0])) {
+                options.header = option[1];
+            } else
+            if ("-footer".equals(option[0])) {
+                options.footer = option[1];
+            } else
+            if ("-top".equals(option[0])) {
+                options.top = option[1];
+            } else
+            if ("-bottom".equals(option[0])) {
+                options.bottom = option[1];
+            } else
+            if ("-notimestamp".equals(option[0])) {
+                options.noTimestamp = Boolean.parseBoolean(option[1]);
+            } else
+
+            // "Other" options.
             if ("-checkstyle-metadata.properties-dir".equals(option[0])) {
                 checkstyleMetadataDotPropertiesDir = new File(option[1]);
             } else
@@ -127,18 +177,20 @@ class CsDoclet {
         }
 
         if (
-            checkstyleMetadataDotPropertiesDir == null
+            !generateHtml
+            && checkstyleMetadataDotPropertiesDir == null
             && checkstyleMetadataDotXmlDir == null
             && messagesDotPropertiesDir == null
             && mediawikiDir == null
         ) {
             rootDoc.printWarning(
-                "None of '-checkstyle-metadata.properties-dir', '-checkstyle-metadata.xml-dir', "
-                + "'-messages.properties-dir' and '-mediawiki-dir' specified - nothing to be done."
+                "None of \"-d\", \"-checkstyle-metadata.properties-dir\", \"-checkstyle-metadata.xml-dir\", "
+                + "\"-messages.properties-dir\" and \"-mediawiki-dir\" specified - nothing to be done."
             );
         }
 
         // Process all specified packages.
+        Collection<Rule> allRules = new ArrayList<Rule>();
         for (PackageDoc pd : rootDoc.specifiedPackages()) {
             String checkstylePackage = pd.name();
 
@@ -152,12 +204,14 @@ class CsDoclet {
                 }
             }
 
-            final Collection<Rule> rules;
+            final Collection<Rule> rulesInPackage;
             try {
-                rules = CsDoclet.rules(classDocs.values(), rootDoc);
+                rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc);
             } catch (Longjump l) {
                 break;
             }
+
+            allRules.addAll(rulesInPackage);
 
             // Generate 'checkstyle-metadata.properties' for the package.
             if (checkstyleMetadataDotPropertiesDir != null) {
@@ -168,12 +222,8 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "checkstyle-metadata.properties"),
                     Charset.forName("ISO-8859-1"),
-                    new ConsumerWhichThrows<PrintWriter, RuntimeException>() {
-
-                        @Override public void
-                        consume(PrintWriter pw) {
-                            CheckstyleMetadataDotPropertiesGenerator.generate(rules, pw, rootDoc);
-                        }
+                    (PrintWriter pw) -> {
+                        CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
             }
@@ -187,12 +237,8 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "checkstyle-metadata.xml"),
                     Charset.forName("UTF-8"),
-                    new ConsumerWhichThrows<PrintWriter, IOException>() {
-
-                        @Override public void
-                        consume(final PrintWriter pw) {
-                            CheckstyleMetadataDotXmlGenerator.generate(rules, pw, rootDoc);
-                        }
+                    (PrintWriter pw) -> {
+                        CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
             }
@@ -205,12 +251,8 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "messages.properties"),
                     Charset.forName("ISO-8859-1"),
-                    new ConsumerWhichThrows<PrintWriter, IOException>() {
-
-                        @Override public void
-                        consume(PrintWriter pw) {
-                            MessagesDotPropertiesGenerator.generate(rules, pw, rootDoc);
-                        }
+                    (PrintWriter pw) -> {
+                        MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
             }
@@ -218,7 +260,7 @@ class CsDoclet {
             // Generate MediaWiki markup documents for each rule in the package.
             if (mediawikiDir != null) {
 
-                for (final Rule rule : rules) {
+                for (final Rule rule : rulesInPackage) {
                     try {
                         CsDoclet.printToFile(
                             new File(
@@ -226,12 +268,8 @@ class CsDoclet {
                                 rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
                             ),
                             Charset.forName("ISO-8859-1"),
-                            new ConsumerWhichThrows<PrintWriter, Longjump>() {
-
-                                @Override public void
-                                consume(PrintWriter pw) throws Longjump {
-                                    MediawikiGenerator.generate(rule, pw, rootDoc);
-                                }
+                            (PrintWriter pw) -> {
+                                MediawikiGenerator.generate(rule, pw, rootDoc);
                             }
                         );
                     } catch (Longjump l) {
@@ -241,7 +279,61 @@ class CsDoclet {
             }
         }
 
+        if (generateHtml) {
+            CsDoclet.generateHtml(allRules, options, rootDoc);
+        }
+
         return true;
+    }
+
+    private static void
+    generateHtml(Collection<Rule> rules, final Options options, RootDoc rootDoc) throws IOException {
+
+        // Create "stylesheet.css".
+        IoUtil.copyResource(
+            CsDoclet.class.getClassLoader(),
+            "de/unkrig/doclet/cs/html/templates/stylesheet.css",
+            new File(options.destination, "stylesheet.css"),
+            true                                                  // createMissingParentDirectories
+        );
+
+        // Render "index.html" (the frameset).
+        NoTemplate.render(
+            IndexHtml.class,
+            new File(options.destination, "index.html"),
+            (IndexHtml indexHtml) -> { indexHtml.render(options); }
+        );
+
+        // Render the per-rule document for all rules.
+        for (Rule rule : rules) {
+
+            NoTemplate.render(
+                RuleHtml.class,
+                new File(options.destination, rule.family() + '/' + rule.name() + ".html"),
+                (RuleHtml ruleHtml) -> {
+                    ruleHtml.render(rule, CsDoclet.HTML, rootDoc, options);
+                }
+            );
+        }
+
+        // Generate the document that is loaded into the "left frame" and displays all rules in "family" groups.
+        NoTemplate.render(
+            AllRulesFrameHtml.class,
+            new File(options.destination, "allrules-frame.html"),
+            (AllRulesFrameHtml allRulesFrameHtml) -> {
+                allRulesFrameHtml.render(rules, rootDoc, options, CsDoclet.HTML);
+            }
+        );
+
+        // Generate "overview-summary.html" - the document that is initially loaded into the "right frame" and displays
+        // all rule summaries (rule name and first sentence of description).
+        NoTemplate.render(
+            OverviewSummaryHtml.class,
+            new File(options.destination, "overview-summary.html"),
+            (OverviewSummaryHtml overviewSummaryHtml) -> {
+                overviewSummaryHtml.render(rules, rootDoc, options, CsDoclet.HTML);
+            }
+        );
     }
 
     /**
@@ -453,7 +545,7 @@ class CsDoclet {
 
         final String simpleName = classDoc.simpleTypeName();
 
-        final String description = CsDoclet.html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+        final String description = CsDoclet.HTML.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
 
         final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
 
@@ -630,7 +722,7 @@ class CsDoclet {
             if (rpa == null) continue;
 
             // Determine the (optional) 'intertitle', which is useful to form groups of properties in a documentation.
-            final String intertitle = CsDoclet.html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
+            final String intertitle = CsDoclet.HTML.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
 
             // Determine the property name.
             final String propertyName;
@@ -648,8 +740,8 @@ class CsDoclet {
             }
 
             // Determine short and long description.
-            final String shortDescription = CsDoclet.html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
-            final String longDescription  = CsDoclet.html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
+            final String shortDescription = CsDoclet.HTML.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
+            final String longDescription  = CsDoclet.HTML.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
 
             // Determine the (optional) option provider.
             final Class<?> optionProvider;
