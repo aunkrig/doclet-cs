@@ -55,10 +55,12 @@ import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
+import de.unkrig.commons.util.collections.IterableUtil;
+import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.doclet.cs.html.templates.AllRulesFrameHtml;
 import de.unkrig.doclet.cs.html.templates.IndexHtml;
 import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
-import de.unkrig.doclet.cs.html.templates.RuleHtml;
+import de.unkrig.doclet.cs.html.templates.RuleDetailHtml;
 import de.unkrig.notemplate.NoTemplate;
 import de.unkrig.notemplate.javadocish.Options;
 
@@ -305,12 +307,12 @@ class CsDoclet {
         );
 
         // Render the per-rule document for all rules.
-        for (Rule rule : rules) {
+        for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(rules)) {
 
             NoTemplate.render(
-                RuleHtml.class,
-                new File(options.destination, rule.family() + '/' + rule.name().replace(':', '_') + ".html"),
-                (RuleHtml ruleHtml) -> {
+                RuleDetailHtml.class,
+                new File(options.destination, rule.current().family() + '/' + rule.current().name().replace(':', '_') + ".html"),
+                (RuleDetailHtml ruleHtml) -> {
                     ruleHtml.render(rule, CsDoclet.HTML, rootDoc, options);
                 }
             );
