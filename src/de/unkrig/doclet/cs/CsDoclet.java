@@ -41,6 +41,8 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
+
 import org.eclipse.ui.IMarkerResolution2;
 
 import com.sun.javadoc.*;
@@ -59,7 +61,6 @@ import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
 import de.unkrig.doclet.cs.html.templates.RuleHtml;
 import de.unkrig.notemplate.NoTemplate;
 import de.unkrig.notemplate.javadocish.Options;
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -465,8 +466,11 @@ class CsDoclet {
         /** The 'parent rule', as defined by eclipse-cs */
         String parent();
 
+        /** @return The first sentence of the description of this rule; may contain HTML markup */
+        String shortDescription();
+
         /** @return The verbose description of this rule; may contain HTML markup */
-        String description();
+        String longDescription();
 
         /** @return The properties of this rule */
         Collection<RuleProperty> properties();
@@ -544,7 +548,8 @@ class CsDoclet {
 
         final String simpleName = classDoc.simpleTypeName();
 
-        final String description = CsDoclet.HTML.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+        final String shortDescription = CsDoclet.HTML.fromTags(classDoc.firstSentenceTags(), classDoc, rootDoc);
+        final String longDescription  = CsDoclet.HTML.fromTags(classDoc.inlineTags(),        classDoc, rootDoc);
 
         final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
 
@@ -630,19 +635,20 @@ class CsDoclet {
         }
 
         return new Rule() {
-            @Override public Doc                       ref()          { return classDoc;     }
-            @Override public String                    family()       { return family;       }
-            @Override public String                    group()        { return group;        }
-            @Override public String                    groupName()    { return groupName;    }
-            @Override public String                    simpleName()   { return simpleName;   }
-            @Override public String                    name()         { return name;         }
-            @Override public String                    internalName() { return internalName; }
-            @Override public String                    parent()       { return parent;       }
-            @Override public String                    description()  { return description;  }
-            @Override public Collection<RuleProperty>  properties()   { return properties;   }
-            @Override public RuleQuickfix[]            quickfixes()   { return quickfixes;   }
-            @Override @Nullable public Boolean         hasSeverity()  { return hasSeverity;  }
-            @Override public SortedMap<String, String> messages()     { return messages;     }
+            @Override public Doc                       ref()               { return classDoc;         }
+            @Override public String                    family()            { return family;           }
+            @Override public String                    group()             { return group;            }
+            @Override public String                    groupName()         { return groupName;        }
+            @Override public String                    simpleName()        { return simpleName;       }
+            @Override public String                    name()              { return name;             }
+            @Override public String                    internalName()      { return internalName;     }
+            @Override public String                    parent()            { return parent;           }
+            @Override public String                    shortDescription()  { return shortDescription; }
+            @Override public String                    longDescription()   { return longDescription;  }
+            @Override public Collection<RuleProperty>  properties()        { return properties;       }
+            @Override public RuleQuickfix[]            quickfixes()        { return quickfixes;       }
+            @Override @Nullable public Boolean         hasSeverity()       { return hasSeverity;      }
+            @Override public SortedMap<String, String> messages()          { return messages;         }
         };
     }
 

@@ -26,8 +26,10 @@
 
 package de.unkrig.doclet.cs.html.templates;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
@@ -37,90 +39,83 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
-import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
+import de.unkrig.notemplate.javadocish.templates.AbstractSummaryHtml;
 
 public
-class OverviewSummaryHtml extends AbstractRightFrameHtml {
+class OverviewSummaryHtml extends AbstractSummaryHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
     public void
     render(Collection<Rule> rules, final RootDoc rootDoc, final Options options, final Html html) {
 
-        super.rRightFrameHtml(
-            "Overview",                                                  // windowTitle
-            options,                                                     // options
-            new String[] { "stylesheet.css" },                           // stylesheetLinks
-            new String[] { "nav1", AbstractRightFrameHtml.DISABLED },    // nav1
-            new String[] { "nav2" },                                     // nav2
-            new String[] { "nav3", AbstractRightFrameHtml.DISABLED },    // nav3
-            new String[] { "nav4", AbstractRightFrameHtml.DISABLED },    // nav4
-            new String[] { "nav5", AbstractRightFrameHtml.DISABLED },    // nav5
-            new String[] { "nav6", AbstractRightFrameHtml.DISABLED },    // nav6
-            () -> {                                                      // renderBody
 
-                OverviewSummaryHtml.this.l(
-"    <div class=\"contentContainer\">"
-                );
+        Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
+        for (Rule rule : rules) {
 
-                OverviewSummaryHtml.this.l(
-"      <h1>ANT Library Overview</h1>"
-                );
-
-                Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
-                for (Rule rule : rules) {
-
-                    Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.family());
-                    if (rulesOfFamily == null) {
-                        rulesOfFamily = new TreeSet<Rule>(new Comparator<Rule>() {
-                            @Override public int compare(Rule r1, Rule r2) { return r1.name().compareTo(r2.name()); }
-                        });
-                        rulesByFamily.put(rule.family(), rulesOfFamily);
-                    }
-
-                    rulesOfFamily.add(rule);
-                }
-                for (Entry<String, Collection<Rule>> e : rulesByFamily.entrySet()) {
-                    String           family        = e.getKey();
-                    Collection<Rule> rulesOfFamily = e.getValue();
-
-                    OverviewSummaryHtml.this.l(
-"    <h2>" + family + " summary</h2>",
-"    <dl>"
-                    );
-
-                    for (Rule rule : rulesOfFamily) {
-                        try {
-                            String link = html.makeLink(
-                                rootDoc,
-                                rule.ref(),
-                                false, // plain
-                                null,  // label
-                                null,  // target
-                                rootDoc
-                            );
-                            String htmlText = html.fromTags(
-                                rule.ref().firstSentenceTags(), // tags
-                                rule.ref(),                     // ref
-                                rootDoc                         // rootDoc
-                            );
-                            OverviewSummaryHtml.this.l(
-"      <dt><code>" + link + "</code></dt>",
-"      <dd>" + htmlText + "</dd>"
-                            );
-                        } catch (Longjump l) {}
-                    }
-                    OverviewSummaryHtml.this.l(
-"    </dl>"
-                    );
-                }
-                OverviewSummaryHtml.this.l(
-"    </div>"
-                );
+            Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.family());
+            if (rulesOfFamily == null) {
+                rulesOfFamily = new TreeSet<Rule>(new Comparator<Rule>() {
+                    @Override public int compare(Rule r1, Rule r2) { return r1.name().compareTo(r2.name()); }
+                });
+                rulesByFamily.put(rule.family(), rulesOfFamily);
             }
+
+            rulesOfFamily.add(rule);
+        }
+
+        List<Section> sections = new ArrayList<Section>();
+        for (Entry<String, Collection<Rule>> e : rulesByFamily.entrySet()) {
+            String           family        = e.getKey();
+            Collection<Rule> rulesOfFamily = e.getValue();
+
+            Section section = new Section();
+            section.anchor             = family;
+            section.title              = family;
+            section.firstColumnHeading = family;
+            section.items              = new ArrayList<SectionItem>();
+            section.summary            = family;
+
+            for (Rule rule : rulesOfFamily) {
+                SectionItem item = new SectionItem();
+                item.link    = family + '/' + rule.name().replace(':', '_') + ".html";
+                item.name    = rule.name();
+                item.summary = rule.shortDescription();
+
+                section.items.add(item);
+            }
+
+            sections.add(section);
+        }
+
+        this.rSummary(
+            "Overview", // windowTitle
+            options,
+            new String[] { "stylesheet.css" }, // stylesheetLinks
+            new String[] { // nav1
+                "Overview",   AbstractRightFrameHtml.HIGHLIT,
+                "Rule",       AbstractRightFrameHtml.DISABLED,
+                "Deprecated", "deprecated-list.html",
+                "Index",      "index-all.html",
+                "Help",       "help-doc.html",
+            },
+            new String[] { // nav2
+                "Prev",
+                "Next",
+            },
+            new String[] { // nav3
+                "Frames",    "index.html?overview-summary.html",
+                "No Frames", "overview-summary.html",
+            },
+            new String[] { // nav4
+                "All Rules", "allclasses-noframe.html",
+            },
+            () -> {}, // prolog
+            () -> {}, // epilog
+            sections
         );
     }
 }
