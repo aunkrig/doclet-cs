@@ -119,7 +119,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     + "%1$s.desc =\\%n"
                 ), rule.simpleName(), rule.name());
 
-                String description = rule.description();
+                String description = rule.longDescription();
                 if (rule.quickfixes().length > 0) {
 
                     description += String.format("%n%n<h4>Quickfixes:</h4>%n<dl>%n");
