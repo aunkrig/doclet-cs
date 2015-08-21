@@ -142,7 +142,15 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             new String[] {                     // nav4
                 "All Rules", "allclasses-noframe.html",
             },
-            () -> {},                          // prolog
+            () -> {                            // prolog
+                if (options.docTitle != null) {
+                    this.l(
+"<div class=\"header\">",
+"<h1 class=\"title\">" + options.docTitle + "</h1>",
+"</div>"
+                    );
+                }
+            },
             () -> {},                          // epilog
             sections
         );
