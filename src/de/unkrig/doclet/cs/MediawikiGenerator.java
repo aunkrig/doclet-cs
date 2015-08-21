@@ -34,6 +34,7 @@ import java.util.Set;
 
 import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
+import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.Doc;
 import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.RootDoc;
@@ -45,7 +46,6 @@ import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
-import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
 
 /**
  * Generates <a href="http://www.mediawiki.org/wiki/Help:Formatting">MediaWiki markup</a> from JAVADOC.
@@ -74,20 +74,33 @@ class MediawikiGenerator {
 
         MediawikiGenerator.printProperties(rule.properties(), pw, rule.ref(), rootDoc);
 
-        if (rule.quickfixes().length > 0) {
+        ClassDoc[] quickfixClasses = rule.quickfixClasses();
+        if (quickfixClasses != null && quickfixClasses.length > 0) {
             pw.printf(
                 ""
                 + "== Quickfixes ==%n"
                 + "%n"
                 + "<dl>%n"
             );
-            for (RuleQuickfix quickfix : rule.quickfixes()) {
+            for (ClassDoc quickfixClass : quickfixClasses) {
+
+                final String quickfixLabel = MediawikiGenerator.html.optionalTag(
+                    quickfixClass,
+                    "@cs-label",
+                    quickfixClass.qualifiedTypeName(), // defaulT
+                    rootDoc
+                );
+                final String quickfixShortDescription = MediawikiGenerator.html.fromTags(
+                    quickfixClass.firstSentenceTags(),
+                    quickfixClass,
+                    rootDoc
+                );
                 pw.printf((
                     ""
                     + "%n"
                     + "<dt>%1$s%n" // Mediawiki forbids leading space and closing tag
                     + "<dd>%2$s%n" // Mediawiki forbids leading space and closing tag
-                ), quickfix.label(), quickfix.description());
+                ), quickfixLabel, quickfixShortDescription);
             }
             pw.printf("</dl>%n");
         }

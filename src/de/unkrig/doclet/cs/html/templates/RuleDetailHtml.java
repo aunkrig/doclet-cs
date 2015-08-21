@@ -53,8 +53,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
-    private static final MessageFormat TITLE_MF   = new MessageFormat("Task \"&lt;{0}&gt;\"");
-    private static final MessageFormat HEADING_MF = new MessageFormat("Task \"<code>&lt;{0}&gt;</code>\"");
+    private static final MessageFormat TITLE_MF = new MessageFormat("Task \"&lt;{0}&gt;\"");
 
     public void
     render(
@@ -64,9 +63,9 @@ class RuleDetailHtml extends AbstractDetailHtml {
         Options                        options
     ) {
 
-        Rule previousRule = ruleTriplet.previous();
-        Rule rule         = ruleTriplet.current();
-        Rule nextRule     = ruleTriplet.next();
+        final Rule previousRule = ruleTriplet.previous();
+        final Rule rule         = ruleTriplet.current();
+        final Rule nextRule     = ruleTriplet.next();
 
         List<SectionItem> propertyItems = new ArrayList<SectionItem>();
         for (RuleProperty property : rule.properties()) {
@@ -105,7 +104,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 nextRule     == null ? "Next Rule" : "<a href=\"\">Next Rule</a>",
             },
             new String[] {                                                // nav3
-                "Frames",    "../index.html?" + rule.family() + "/" + rule.name() + ".html",
+                "Frames",    "../index.html?" + rule.family() + "/" + rule.name().replace(':', '_') + ".html",
                 "No Frames", "#top",
             },
             new String[] {                                                // nav4

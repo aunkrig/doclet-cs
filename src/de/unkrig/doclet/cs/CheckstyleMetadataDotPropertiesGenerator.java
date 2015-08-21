@@ -35,13 +35,13 @@ import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
-import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -120,20 +120,30 @@ class CheckstyleMetadataDotPropertiesGenerator {
                 ), rule.simpleName(), rule.name());
 
                 String description = rule.longDescription();
-                if (rule.quickfixes().length > 0) {
+                ClassDoc[] quickfixClasses = rule.quickfixClasses();
+                if (quickfixClasses != null && quickfixClasses.length > 0) {
 
                     description += String.format("%n%n<h4>Quickfixes:</h4>%n<dl>%n");
 
-                    for (RuleQuickfix qf : rule.quickfixes()) {
+                    for (ClassDoc quickfixClass : quickfixClasses) {
 
-                        String quickfixLabel       = qf.label();
-                        String quickfixDescription = qf.description();
+                        final String quickfixLabel = CheckstyleMetadataDotPropertiesGenerator.html.optionalTag(
+                            quickfixClass,
+                            "@cs-label",
+                            quickfixClass.qualifiedTypeName(), // defaulT
+                            rootDoc
+                        );
+                        final String quickfixShortDescription = CheckstyleMetadataDotPropertiesGenerator.html.fromTags(
+                            quickfixClass.firstSentenceTags(),
+                            quickfixClass,
+                            rootDoc
+                        );
 
                         description += String.format((
                             ""
                             + "  <dt>%1$s%n"
                             + "  <dd>%2$s%n"
-                        ), quickfixLabel, quickfixDescription);
+                        ), quickfixLabel, quickfixShortDescription);
                     }
 
                     description += String.format("</dl>");

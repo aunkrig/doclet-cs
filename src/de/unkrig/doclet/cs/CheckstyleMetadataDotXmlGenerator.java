@@ -29,11 +29,11 @@ package de.unkrig.doclet.cs;
 import java.io.PrintWriter;
 import java.util.Collection;
 
+import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
-import de.unkrig.doclet.cs.CsDoclet.RuleQuickfix;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -124,10 +124,11 @@ class CheckstyleMetadataDotXmlGenerator {
                 pw.printf("            </property-metadata>%n");
             }
 
-            if (rule.quickfixes().length > 0) {
+            ClassDoc[] quickfixClasses = rule.quickfixClasses();
+            if (quickfixClasses != null && quickfixClasses.length > 0) {
                 pw.printf("%n");
-                for (RuleQuickfix quickfix : rule.quickfixes()) {
-                    pw.printf("            <quickfix classname=\"%s\" />%n", quickfix.className());
+                for (ClassDoc quickfixClass : quickfixClasses) {
+                    pw.printf("            <quickfix classname=\"%s\" />%n", quickfixClass.qualifiedName());
                 }
             }
 
