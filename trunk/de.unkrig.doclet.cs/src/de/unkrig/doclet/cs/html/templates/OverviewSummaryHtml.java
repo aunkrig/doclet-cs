@@ -35,11 +35,13 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
+import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractSummaryHtml;
@@ -50,7 +52,13 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
     public void
-    render(Collection<Rule> rules, final RootDoc rootDoc, final Options options, final Html html) {
+    render(
+        Collection<Rule>         rules,
+        Collection<Quickfix> quickfixes,
+        final RootDoc            rootDoc,
+        final Options            options,
+        final Html               html
+    ) {
 
 
         Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
@@ -81,9 +89,30 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
             for (Rule rule : rulesOfFamily) {
                 SectionItem item = new SectionItem();
-                item.link    = family + '/' + rule.name().replace(':', '_') + ".html";
+                item.link    = family + '/' + ((ClassDoc) rule.ref()).simpleTypeName() + ".html";
                 item.name    = rule.name();
                 item.summary = rule.shortDescription();
+
+                section.items.add(item);
+            }
+
+            sections.add(section);
+        }
+
+        // Add the "Quickfixes" section.
+        {
+            Section section = new Section();
+            section.anchor             = "quickfixes";
+            section.title              = "Quickfixes";
+            section.firstColumnHeading = "Quickfix";
+            section.items              = new ArrayList<SectionItem>();
+            section.summary            = "Quickfixes for the checks.";
+
+            for (Quickfix quickfix : quickfixes) {
+                SectionItem item = new SectionItem();
+                item.link    = "quickfixes/" + quickfix.label() + ".html";
+                item.name    = quickfix.label();
+                item.summary = quickfix.shortDescription();
 
                 section.items.add(item);
             }

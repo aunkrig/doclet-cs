@@ -31,11 +31,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -43,14 +46,13 @@ import java.util.regex.Pattern;
 
 import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
-import org.eclipse.ui.IMarkerResolution2;
-
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
 import de.unkrig.commons.doclet.Docs;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
+import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
@@ -60,6 +62,7 @@ import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.doclet.cs.html.templates.AllRulesFrameHtml;
 import de.unkrig.doclet.cs.html.templates.IndexHtml;
 import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
+import de.unkrig.doclet.cs.html.templates.QuickfixDetailHtml;
 import de.unkrig.doclet.cs.html.templates.RuleDetailHtml;
 import de.unkrig.notemplate.NoTemplate;
 import de.unkrig.notemplate.javadocish.Options;
@@ -70,8 +73,6 @@ import de.unkrig.notemplate.javadocish.Options;
  */
 public final
 class CsDoclet {
-
-    private static final Html HTML = new Html(Html.STANDARD_LINK_MAKER);
 
     /**
      * Doclets are never instantiated.
@@ -104,6 +105,8 @@ class CsDoclet {
         if ("-checkstyle-metadata.xml-dir".equals(option))        return 2;
         if ("-messages.properties-dir".equals(option))            return 2;
         if ("-mediawiki-dir".equals(option))                      return 2;
+        if ("-link".equals(option))                               return 2;
+        if ("-linkoffline".equals(option))                        return 3;
 
         return 0;
     }
@@ -120,8 +123,9 @@ class CsDoclet {
         // in english.
         Locale.setDefault(Locale.ENGLISH);
 
-        boolean generateHtml = false;
-        Options options      = new Options();
+        boolean                                           generateHtml     = false;
+        Options                                           options          = new Options();
+        final Map<String /*packageName*/, URL /*target*/> externalJavadocs = new HashMap<String, URL>();
 
         File    checkstyleMetadataDotPropertiesDir = null;
         File    checkstyleMetadataDotXmlDir        = null;
@@ -170,6 +174,16 @@ class CsDoclet {
             if ("-mediawiki-dir".equals(option[0])) {
                 mediawikiDir = new File(option[1]);
             } else
+            if ("-link".equals(option[0])) {
+                URL targetUrl = new URL(option[1] + '/');
+                Docs.readExternalJavadocs(targetUrl, targetUrl, externalJavadocs, rootDoc);
+            } else
+            if ("-linkoffline".equals(option[0])) {
+                URL targetUrl      = new URL(option[1] + '/');
+                URL packageListUrl = new URL(option[2] + '/');
+
+                Docs.readExternalJavadocs(targetUrl, packageListUrl, externalJavadocs, rootDoc);
+            } else
             {
 
                 // It is quite counterintuitive, but 'options()' returns ALL options, not only those which
@@ -191,8 +205,37 @@ class CsDoclet {
             );
         }
 
+        ClassDoc checkClass, filterClass, quickfixClass;
+        try {
+            checkClass    = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
+            filterClass   = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
+            quickfixClass = Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+        } catch (Longjump l) {
+            return false;
+        }
+
+        Html html = new Html(new Html.ExternalJavadocsLinkMaker(externalJavadocs, new LinkMaker() {
+
+            @Override @Nullable public String
+            makeHref(Doc from, Doc to, RootDoc rootDoc) {
+
+                if (!(to instanceof ClassDoc)) return null;
+                ClassDoc cd = (ClassDoc) to;
+
+                if (Docs.isSubclassOf(cd, checkClass))    return "checks/"     + cd.simpleTypeName() + ".html";
+                if (Docs.isSubclassOf(cd, filterClass))   return "filters/"    + cd.simpleTypeName() + ".html";
+                if (Docs.isSubclassOf(cd, quickfixClass)) return "quickfixes/" + cd.simpleTypeName() + ".html";
+
+                return null;
+            }
+
+            @Override public String
+            makeDefaultLabel(Doc from, Doc to, RootDoc rootDoc) { return to.name(); }
+        }));
+
         // Process all specified packages.
-        Collection<Rule> allRules = new ArrayList<Rule>();
+        Collection<Rule>         allRules      = new ArrayList<Rule>();
+        Collection<Quickfix> allQuickfixes = new ArrayList<Quickfix>();
         for (PackageDoc pd : rootDoc.specifiedPackages()) {
             String checkstylePackage = pd.name();
 
@@ -208,12 +251,19 @@ class CsDoclet {
 
             final Collection<Rule> rulesInPackage;
             try {
-                rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc);
+                rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc, html);
             } catch (Longjump l) {
-                break;
+                continue;
             }
-
             allRules.addAll(rulesInPackage);
+
+            final Collection<Quickfix> quickfixesInPackage;
+            try {
+                quickfixesInPackage = CsDoclet.quickfixes(classDocs.values(), rootDoc, html);
+            } catch (Longjump l) {
+                continue;
+            }
+            allQuickfixes.addAll(quickfixesInPackage);
 
             // Generate 'checkstyle-metadata.properties' for the package.
             if (checkstyleMetadataDotPropertiesDir != null) {
@@ -281,15 +331,25 @@ class CsDoclet {
             }
         }
 
+        // Generate HTML (JAVADOCish) documentation.
         if (generateHtml) {
-            CsDoclet.generateHtml(allRules, options, rootDoc);
+            CsDoclet.generateHtml(allRules, allQuickfixes, options, rootDoc, html);
         }
 
         return true;
     }
 
+    /**
+     * Generates all HTML documents, including the static ones ("stylesheet.css", for example).
+     */
     private static void
-    generateHtml(Collection<Rule> rules, final Options options, RootDoc rootDoc) throws IOException {
+    generateHtml(
+        Collection<Rule>         allRules,
+        Collection<Quickfix> allQuickfixes,
+        Options                  options,
+        RootDoc                  rootDoc,
+        Html                     html
+    ) throws IOException {
 
         // Create "stylesheet.css".
         IoUtil.copyResource(
@@ -307,23 +367,36 @@ class CsDoclet {
         );
 
         // Render the per-rule document for all rules.
-        for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(rules)) {
+        for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(allRules)) {
 
             NoTemplate.render(
                 RuleDetailHtml.class,
-                new File(options.destination, rule.current().family() + '/' + rule.current().name().replace(':', '_') + ".html"),
+                new File(options.destination, rule.current().family() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"),
                 (RuleDetailHtml ruleHtml) -> {
-                    ruleHtml.render(rule, CsDoclet.HTML, rootDoc, options);
+                    ruleHtml.render(rule, html, rootDoc, options);
                 }
             );
         }
 
-        // Generate the document that is loaded into the "left frame" and displays all rules in "family" groups.
+        // Generate documentation for quickfixes.
+        for (ElementWithContext<Quickfix> quickfix : IterableUtil.iterableWithContext(allQuickfixes)) {
+
+            NoTemplate.render(
+                QuickfixDetailHtml.class,
+                new File(options.destination, "quickfixes/" + ((ClassDoc) quickfix.current().ref()).simpleTypeName() + ".html"),
+                (QuickfixDetailHtml quickfixHtml) -> {
+                    quickfixHtml.render(quickfix, html, rootDoc, options);
+                }
+            );
+        }
+
+        // Generate the document that is loaded into the "left frame" and displays all rules in "family" groups and
+        // the quickfixes.
         NoTemplate.render(
             AllRulesFrameHtml.class,
             new File(options.destination, "allrules-frame.html"),
             (AllRulesFrameHtml allRulesFrameHtml) -> {
-                allRulesFrameHtml.render(rules, rootDoc, options, CsDoclet.HTML);
+                allRulesFrameHtml.render(allRules, allQuickfixes, rootDoc, options, html);
             }
         );
 
@@ -333,7 +406,7 @@ class CsDoclet {
             OverviewSummaryHtml.class,
             new File(options.destination, "overview-summary.html"),
             (OverviewSummaryHtml overviewSummaryHtml) -> {
-                overviewSummaryHtml.render(rules, rootDoc, options, CsDoclet.HTML);
+                overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, html);
             }
         );
     }
@@ -444,7 +517,7 @@ class CsDoclet {
     public
     interface Rule {
 
-        /** @return The doc comment to which this rule is related */
+        /** @return The doc comment of the Java element that implements this rule */
         Doc ref();
 
         /** @return The family to which this rule belongs ("checks" or "filters") */
@@ -478,7 +551,7 @@ class CsDoclet {
         Collection<RuleProperty> properties();
 
         /** @return The quickfixes which are related to this rule */
-        RuleQuickfix[] quickfixes();
+        @Nullable ClassDoc[] quickfixClasses();
 
         /** @return Whether this rule has a severity; typically checks do, and filters don't */
         @Nullable Boolean hasSeverity();
@@ -491,7 +564,7 @@ class CsDoclet {
      * Derives a collection of CheckStyle rules from the given {@code classDocs}.
      */
     public static Collection<Rule>
-    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc) throws Longjump {
+    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
 
         ClassDoc checkClass  = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
         ClassDoc filterClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
@@ -516,7 +589,7 @@ class CsDoclet {
 
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, family));
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, family, html));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -526,19 +599,79 @@ class CsDoclet {
     }
 
     /**
+     * Derives a collection of quickfixes from the given {@code classDocs}.
+     *
+     * @param quickfixes Quickfixes to re-use, or the set to add new quickfixes to
+     */
+    public static Collection<Quickfix>
+    quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
+
+        ClassDoc
+        quickfixInterface = Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+
+        List<Quickfix> quickfixes = new ArrayList<Quickfix>();
+        for (final ClassDoc classDoc : classDocs) {
+
+            if (!Docs.isSubclassOf(classDoc, quickfixInterface)) continue;
+
+            try {
+
+                final String
+                className = classDoc.qualifiedTypeName();
+
+                final String
+                quickfixLabel = html.optionalTag(
+                    classDoc,
+                    "@cs-label",
+                    classDoc.qualifiedTypeName(), // defaulT
+                    rootDoc
+                );
+
+                final String
+                quickfixShortDescription = html.fromTags(
+                    classDoc.firstSentenceTags(),
+                    classDoc,
+                    rootDoc
+                );
+
+                final String
+                quickfixLongDescription = html.fromTags(
+                    classDoc.inlineTags(),
+                    classDoc,
+                    rootDoc
+                );
+
+                quickfixes.add(new Quickfix() {
+                    @Override public Doc              ref()              { return classDoc;                 }
+                    @Override @Nullable public String className()        { return className;                }
+                    @Override public String           label()            { return quickfixLabel;            }
+                    @Override public String           shortDescription() { return quickfixShortDescription; }
+                    @Override public String           longDescription()  { return quickfixLongDescription;  }
+                });
+            } catch (Longjump l) {}
+        }
+
+        return quickfixes;
+    }
+
+    /**
      * Parses a CheckStyle rule.
      */
     private static Rule
-    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc, final String family)
+    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc, final String family, Html html)
     throws Longjump {
 
         // CHECKSTYLE LineLength:OFF
-        final String   group        = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
-        final String   groupName    = Annotations.getElementValue(ruleAnnotation, "groupName",    String.class);
-        final String   name         = Annotations.getElementValue(ruleAnnotation, "name",         String.class);
-        final String   parent       = Annotations.getElementValue(ruleAnnotation, "parent",       String.class);
-        final Object[] avs          = Annotations.getElementValue(ruleAnnotation, "quickfixes",   Object[].class);
-        final Boolean  hasSeverity  = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
+        final String     group            = Annotations.getElementValue(ruleAnnotation, "group", String.class);
+        final String     groupName        = Annotations.getElementValue(ruleAnnotation, "groupName", String.class);
+        final String     simpleName       = classDoc.simpleTypeName();
+        final String     name             = Annotations.getElementValue(ruleAnnotation, "name", String.class);
+        final String     internalName     = classDoc.qualifiedTypeName();
+        final String     parent           = Annotations.getElementValue(ruleAnnotation, "parent", String.class);
+        final String     shortDescription = html.fromTags(classDoc.firstSentenceTags(), classDoc, rootDoc);
+        final String     longDescription  = html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+        final ClassDoc[] quickfixClasses  = Annotations.getElementValue(ruleAnnotation, "quickfixes", ClassDoc[].class);
+        final Boolean    hasSeverity      = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
         // CHECKSTYLE LineLength:ON
 
         assert group     != null;
@@ -546,44 +679,7 @@ class CsDoclet {
         assert name      != null;
         assert parent    != null;
 
-        final String internalName = classDoc.qualifiedTypeName();
-
-        final String simpleName = classDoc.simpleTypeName();
-
-        final String shortDescription = CsDoclet.HTML.fromTags(classDoc.firstSentenceTags(), classDoc, rootDoc);
-        final String longDescription  = CsDoclet.HTML.fromTags(classDoc.inlineTags(),        classDoc, rootDoc);
-
-        final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc);
-
-        final RuleQuickfix[] quickfixes;
-        if (avs == null) {
-            quickfixes = new RuleQuickfix[0];
-        } else {
-            quickfixes = new RuleQuickfix[avs.length];
-            for (int i = 0; i < avs.length; i++) {
-                final Type quickfixType = (Type) avs[i];
-
-                Class<?> qfc = Types.loadType(classDoc.position(), quickfixType, rootDoc);
-
-                IMarkerResolution2 mr2;
-                try {
-                    mr2 = (IMarkerResolution2) qfc.newInstance();
-                } catch (Exception e) {
-                    rootDoc.printError(classDoc.position(), "Instantiating quickfix '" + qfc + "':" + e);
-                    throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                }
-
-                final String quickfixClassName   = quickfixType.qualifiedTypeName();
-                final String quickfixLabel       = mr2.getLabel();
-                final String quickfixDescription = mr2.getDescription();
-
-                quickfixes[i] = new RuleQuickfix() {
-                    @Override public String className()   { return quickfixClassName;   }
-                    @Override public String label()       { return quickfixLabel;       }
-                    @Override public String description() { return quickfixDescription; }
-                };
-            }
-        }
+        final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc, html);
 
         final SortedMap<String, String> messages = new TreeMap<String, String>();
         for (ClassDoc cd = classDoc; cd != null; cd = cd.superclass()) {
@@ -648,7 +744,7 @@ class CsDoclet {
             @Override public String                    shortDescription()  { return shortDescription; }
             @Override public String                    longDescription()   { return longDescription;  }
             @Override public Collection<RuleProperty>  properties()        { return properties;       }
-            @Override public RuleQuickfix[]            quickfixes()        { return quickfixes;       }
+            @Override public ClassDoc[]                quickfixClasses()   { return quickfixClasses;  }
             @Override @Nullable public Boolean         hasSeverity()       { return hasSeverity;      }
             @Override public SortedMap<String, String> messages()          { return messages;         }
         };
@@ -696,16 +792,22 @@ class CsDoclet {
      * Representation of a 'quickfix' for a rule.
      */
     public
-    interface RuleQuickfix {
+    interface Quickfix {
 
-        /** @return The (fully qualified) class name of the implementation */
-        String className();
+        /** @return The doc comment to which this quickfix is related */
+        Doc ref();
 
-        /** @return The 'label' of the quickfix, as returned by {@link IMarkerResolution2#getLabel()} */
-        String label();
+        /** @return Fully qualified class name of the quickfix */
+        @Nullable String className();
 
-        /** @return The 'description' of the quickfix, as returned by {@link IMarkerResolution2#getDescription()} */
-        String description();
+        /** @return The "label" of the quickfix, as given in the "{@code @cs-label}" block tag */
+        @Nullable String label();
+
+        /** @return The first sentence of the description of; may contain HTML markup */
+        String shortDescription();
+
+        /** @return The verbose description; may contain HTML markup */
+        String longDescription();
     }
 
     /**
@@ -713,7 +815,7 @@ class CsDoclet {
      * Class, AnnotationValue[], Object, Object)} for each property of the rule designated by {@code classDoc}
      */
     public static Collection<RuleProperty>
-    properties(ClassDoc classDoc, RootDoc rootDoc) throws Longjump {
+    properties(ClassDoc classDoc, RootDoc rootDoc, Html html) throws Longjump {
 
         List<RuleProperty> properties = new ArrayList<RuleProperty>();
         for (final MethodDoc methodDoc : classDoc.methods(false)) {
@@ -729,7 +831,7 @@ class CsDoclet {
             if (rpa == null) continue;
 
             // Determine the (optional) 'intertitle', which is useful to form groups of properties in a documentation.
-            final String intertitle = CsDoclet.HTML.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
+            final String intertitle = html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
 
             // Determine the property name.
             final String propertyName;
@@ -747,8 +849,8 @@ class CsDoclet {
             }
 
             // Determine short and long description.
-            final String shortDescription = CsDoclet.HTML.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
-            final String longDescription  = CsDoclet.HTML.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
+            final String shortDescription = html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
+            final String longDescription  = html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
 
             // Determine the (optional) option provider.
             final Class<?> optionProvider;

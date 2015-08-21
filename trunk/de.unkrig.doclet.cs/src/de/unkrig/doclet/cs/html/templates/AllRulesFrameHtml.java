@@ -38,13 +38,20 @@ import com.sun.javadoc.RootDoc;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
+import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractBottomLeftFrameHtml;
 
 public class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
 
     public void
-    render(final Collection<Rule> rules, final RootDoc rootDoc, Options options, final Html html) {
+    render(
+        final Collection<Rule>         rules,
+        final Collection<Quickfix> quickfixes,
+        final RootDoc                  rootDoc,
+        Options                        options,
+        final Html                     html
+    ) {
 
         super.rBottomLeftFrameHtml(
             "All types",                       // heading
@@ -86,7 +93,7 @@ public class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
                                rule.ref(),   // to
                                false,        // plain
                                null,         // label
-                               "classFrame", // target
+                               "ruleFrame",  // target
                                rootDoc       // rootDoc
                             );
                             AllRulesFrameHtml.this.l(
@@ -97,6 +104,29 @@ public class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
                         }
                     }
                 }
+
+                AllRulesFrameHtml.this.l(
+                    "      <dt>Quickfixes</dt>"
+                );
+
+                for (Quickfix quickfix : quickfixes) {
+                    try {
+                        String link = html.makeLink(
+                            rootDoc,        // from
+                            quickfix.ref(), // to
+                            false,          // plain
+                            null,           // label
+                            "ruleFrame",    // target
+                            rootDoc         // rootDoc
+                        );
+                        AllRulesFrameHtml.this.l(
+"      <dd><code>" + link + "</code></dd>"
+                        );
+                    } catch (Longjump l) {
+                        ;
+                    }
+                }
+
                 AllRulesFrameHtml.this.l(
 "    </dl>"
                 );
