@@ -40,8 +40,8 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
-import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
+import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractSummaryHtml;
@@ -53,11 +53,11 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
     public void
     render(
-        Collection<Rule>         rules,
+        Collection<Rule>     rules,
         Collection<Quickfix> quickfixes,
-        final RootDoc            rootDoc,
-        final Options            options,
-        final Html               html
+        final RootDoc        rootDoc,
+        final Options        options,
+        final Html           html
     ) {
 
 
@@ -121,29 +121,29 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
         }
 
         this.rSummary(
-            "Overview", // windowTitle
+            "Overview",                        // windowTitle
             options,
             new String[] { "stylesheet.css" }, // stylesheetLinks
-            new String[] { // nav1
+            new String[] {                     // nav1
                 "Overview",   AbstractRightFrameHtml.HIGHLIT,
                 "Rule",       AbstractRightFrameHtml.DISABLED,
                 "Deprecated", "deprecated-list.html",
                 "Index",      "index-all.html",
                 "Help",       "help-doc.html",
             },
-            new String[] { // nav2
+            new String[] {                     // nav2
                 "Prev",
                 "Next",
             },
-            new String[] { // nav3
+            new String[] {                     // nav3
                 "Frames",    "index.html?overview-summary.html",
                 "No Frames", "overview-summary.html",
             },
-            new String[] { // nav4
+            new String[] {                     // nav4
                 "All Rules", "allclasses-noframe.html",
             },
-            () -> {}, // prolog
-            () -> {}, // epilog
+            () -> {},                          // prolog
+            () -> {},                          // epilog
             sections
         );
     }
