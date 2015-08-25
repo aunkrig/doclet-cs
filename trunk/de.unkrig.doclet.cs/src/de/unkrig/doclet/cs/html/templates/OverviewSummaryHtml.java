@@ -57,9 +57,9 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
         Collection<Quickfix> quickfixes,
         final RootDoc        rootDoc,
         final Options        options,
+        String               indexLink,
         final Html           html
     ) {
-
 
         Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
         for (Rule rule : rules) {
@@ -128,7 +128,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                 "Overview",   AbstractRightFrameHtml.HIGHLIT,
                 "Rule",       AbstractRightFrameHtml.DISABLED,
                 "Deprecated", "deprecated-list.html",
-                "Index",      "index-all.html",
+                "Index",      indexLink,
                 "Help",       "help-doc.html",
             },
             new String[] {                     // nav2

@@ -32,16 +32,16 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
+import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractDetailHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 
 /**
  * Renderer for the "per-rule" documentation document.
- *
- * @copyright (C) 2015, SWM Services GmbH
  */
 public
 class QuickfixDetailHtml extends AbstractDetailHtml {
@@ -51,9 +51,11 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
     public void
     render(
         final ElementWithContext<Quickfix> quickfixTriplet,
-        final Html                             html,
-        final RootDoc                          rootDoc,
-        Options                                options
+        final Html                         html,
+        final RootDoc                      rootDoc,
+        Options                            options,
+        String                             indexLink,
+        Consumer<IndexEntry>               indexEntries
     ) {
 
         Quickfix previousQuickfix = quickfixTriplet.previous();
@@ -68,7 +70,7 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
                 "Overview",   "../overview-summary.html",
                 "Rule",       AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
-                "Index",      "../index-all.html",
+                "Index",      indexLink,
                 "Help",       "../help-doc.html",
             },
             new String[] {                                              // nav2

@@ -35,18 +35,19 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
 import de.unkrig.notemplate.HtmlTemplate;
+import de.unkrig.notemplate.javadocish.IndexPages;
+import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractDetailHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 
 /**
  * Renderer for the "per-rule" documentation document.
- *
- * @copyright (C) 2015, SWM Services GmbH
  */
 public
 class RuleDetailHtml extends AbstractDetailHtml {
@@ -60,12 +61,25 @@ class RuleDetailHtml extends AbstractDetailHtml {
         final ElementWithContext<Rule> ruleTriplet,
         final Html                     html,
         final RootDoc                  rootDoc,
-        Options                        options
+        Options                        options,
+        String                         indexLink,
+        Consumer<IndexEntry>           indexEntries
     ) {
 
         final Rule previousRule = ruleTriplet.previous();
         final Rule rule         = ruleTriplet.current();
         final Rule nextRule     = ruleTriplet.next();
+
+        // Index entry for rule.
+        {
+            String ruleLink = rule.family() + "/" + rule.ref().name().replace('.', '/');
+            indexEntries.consume(IndexPages.indexEntry(
+                rule.name(),            // key
+                ruleLink,               // link
+                "Rule",                 // explanation
+                rule.shortDescription() // shortDescription
+            ));
+        }
 
         List<SectionItem> propertyItems = new ArrayList<SectionItem>();
         for (RuleProperty property : rule.properties()) {
@@ -78,6 +92,18 @@ class RuleDetailHtml extends AbstractDetailHtml {
             propertyItem.content          = property.longDescription();
 
             propertyItems.add(propertyItem);
+
+            // Index entry for rule property.
+            {
+                String ruleLink     = rule.family() + "/" + rule.ref().name().replace('.', '/');
+                String propertyLink = ruleLink + "#property_" + property.name();
+                indexEntries.consume(IndexPages.indexEntry(
+                    property.name(),                                                         // key
+                    propertyLink,                                                            // link
+                    "Property of rule <a href=\"" + ruleLink + "\">" + rule.name() + "</a>", // explanation
+                    property.shortDescription()                                              // shortDescription
+                ));
+            }
         }
 
         Section propertiesSection = new Section();
@@ -96,7 +122,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 "Overview",   "../overview-summary.html",
                 "Rule",       AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
-                "Index",      "../index-all.html",
+                "Index",      "../" + indexLink,
                 "Help",       "../help-doc.html",
             },
             new String[] {                                                // nav2

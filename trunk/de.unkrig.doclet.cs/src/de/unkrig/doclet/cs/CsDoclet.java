@@ -54,6 +54,8 @@ import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
+import de.unkrig.commons.lang.protocol.Consumer;
+import de.unkrig.commons.lang.protocol.ConsumerUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
@@ -65,7 +67,10 @@ import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
 import de.unkrig.doclet.cs.html.templates.QuickfixDetailHtml;
 import de.unkrig.doclet.cs.html.templates.RuleDetailHtml;
 import de.unkrig.notemplate.NoTemplate;
+import de.unkrig.notemplate.javadocish.IndexPages;
+import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
+import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -82,6 +87,8 @@ class CsDoclet {
     private static final Pattern SETTER = Pattern.compile("set[A-Z].*");
 
     public static LanguageVersion languageVersion() { return LanguageVersion.JAVA_1_5; }
+
+    enum IndexStyle { NONE, SINGLE, SPLIT }
 
     /**
      * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
@@ -107,6 +114,8 @@ class CsDoclet {
         if ("-mediawiki-dir".equals(option))                      return 2;
         if ("-link".equals(option))                               return 2;
         if ("-linkoffline".equals(option))                        return 3;
+        if ("-splitindex".equals(option))                         return 1;
+        if ("-noindex".equals(option))                            return 1;
 
         return 0;
     }
@@ -123,14 +132,17 @@ class CsDoclet {
         // in english.
         Locale.setDefault(Locale.ENGLISH);
 
-        boolean                                           generateHtml     = false;
-        Options                                           options          = new Options();
-        final Map<String /*packageName*/, URL /*target*/> externalJavadocs = new HashMap<String, URL>();
+        boolean generateHtml     = false;
+        Options options          = new Options();
 
         File    checkstyleMetadataDotPropertiesDir = null;
         File    checkstyleMetadataDotXmlDir        = null;
         File    messagesDotPropertiesDir           = null;
         File    mediawikiDir                       = null;
+
+        final Map<String /*packageName*/, URL /*target*/> externalJavadocs = new HashMap<String, URL>();
+
+        IndexStyle indexStyle = IndexStyle.SINGLE;
 
         for (String[] option : rootDoc.options()) {
 
@@ -183,6 +195,12 @@ class CsDoclet {
                 URL packageListUrl = new URL(option[2] + '/');
 
                 Docs.readExternalJavadocs(targetUrl, packageListUrl, externalJavadocs, rootDoc);
+            } else
+            if ("-splitindex".equals(option[0])) {
+                indexStyle = IndexStyle.SPLIT;
+            } else
+            if ("-noindex".equals(option[0])) {
+                indexStyle = IndexStyle.NONE;
             } else
             {
 
@@ -333,7 +351,7 @@ class CsDoclet {
 
         // Generate HTML (JAVADOCish) documentation.
         if (generateHtml) {
-            CsDoclet.generateHtml(allRules, allQuickfixes, options, rootDoc, html);
+            CsDoclet.generateHtml(allRules, allQuickfixes, options, indexStyle, rootDoc, html);
         }
 
         return true;
@@ -344,11 +362,12 @@ class CsDoclet {
      */
     private static void
     generateHtml(
-        Collection<Rule>         allRules,
+        Collection<Rule>     allRules,
         Collection<Quickfix> allQuickfixes,
-        Options                  options,
-        RootDoc                  rootDoc,
-        Html                     html
+        Options              options,
+        IndexStyle           indexStyle,
+        RootDoc              rootDoc,
+        Html                 html
     ) throws IOException {
 
         // Create "stylesheet.css".
@@ -359,6 +378,9 @@ class CsDoclet {
             true                                                  // createMissingParentDirectories
         );
 
+        final Collection<IndexEntry> indexEntries       = new ArrayList<IndexEntry>();
+        Consumer<IndexEntry>         indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
+
         // Render "index.html" (the frameset).
         NoTemplate.render(
             IndexHtml.class,
@@ -366,14 +388,25 @@ class CsDoclet {
             (IndexHtml indexHtml) -> { indexHtml.render(options); }
         );
 
+        String indexLink;
+        switch (indexStyle) {
+        case NONE:   indexLink = AbstractRightFrameHtml.DISABLED; break;
+        case SINGLE: indexLink = "index-all.html";                break;
+        case SPLIT:  indexLink = "index-pages/index-1.html";      break;
+        default:     throw new AssertionError(indexStyle);
+        }
+
         // Render the per-rule document for all rules.
         for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(allRules)) {
 
             NoTemplate.render(
-                RuleDetailHtml.class,
-                new File(options.destination, rule.current().family() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"),
-                (RuleDetailHtml ruleHtml) -> {
-                    ruleHtml.render(rule, html, rootDoc, options);
+                RuleDetailHtml.class,          // templateClass
+                new File(                      // outputFile
+                    options.destination,
+                    rule.current().family() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"
+                ),
+                (RuleDetailHtml ruleHtml) -> { // renderer
+                    ruleHtml.render(rule, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
         }
@@ -382,10 +415,13 @@ class CsDoclet {
         for (ElementWithContext<Quickfix> quickfix : IterableUtil.iterableWithContext(allQuickfixes)) {
 
             NoTemplate.render(
-                QuickfixDetailHtml.class,
-                new File(options.destination, "quickfixes/" + ((ClassDoc) quickfix.current().ref()).simpleTypeName() + ".html"),
-                (QuickfixDetailHtml quickfixHtml) -> {
-                    quickfixHtml.render(quickfix, html, rootDoc, options);
+                QuickfixDetailHtml.class,              // templateClass
+                new File(                              // outputFile
+                    options.destination,
+                    "quickfixes/" + ((ClassDoc) quickfix.current().ref()).simpleTypeName() + ".html"
+                ),
+                (QuickfixDetailHtml quickfixHtml) -> { // renderer
+                    quickfixHtml.render(quickfix, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
         }
@@ -406,9 +442,50 @@ class CsDoclet {
             OverviewSummaryHtml.class,
             new File(options.destination, "overview-summary.html"),
             (OverviewSummaryHtml overviewSummaryHtml) -> {
-                overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, html);
+                overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, indexLink, html);
             }
         );
+
+        // Generate the index file(s).
+        switch (indexStyle) {
+
+        case NONE:
+            ;
+            break;
+
+        case SINGLE:
+            IndexPages.createSingleIndex(
+                new File(options.destination, "index-all.html"), // outputFile
+                indexEntries,                                    // entries
+                options,                                         // options
+                new String[] {                                   // nav1
+                    "Overview",   "overview-summary.html",
+                    "Rule",       AbstractRightFrameHtml.DISABLED,
+                    "Deprecated", "deprecated-list.html",
+                    "Index",      AbstractRightFrameHtml.HIGHLIT,
+                    "Help",       "help-doc.html",
+                }
+            );
+            break;
+
+        case SPLIT:
+            IndexPages.createSplitIndex(
+                new File(options.destination, "index-all.html"), // outputFile
+                indexEntries,                                    // entries
+                options,                                         // options
+                new String[] {                                   // nav1
+                    "Overview",   "overview-summary.html",
+                    "Rule",       AbstractRightFrameHtml.DISABLED,
+                    "Deprecated", "deprecated-list.html",
+                    "Index",      AbstractRightFrameHtml.HIGHLIT,
+                    "Help",       "help-doc.html",
+                }
+            );
+            break;
+
+        default:
+            throw new AssertionError(indexStyle);
+        }
     }
 
     /**
