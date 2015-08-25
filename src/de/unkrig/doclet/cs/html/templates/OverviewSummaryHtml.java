@@ -40,6 +40,7 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
@@ -146,12 +147,37 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                 if (options.docTitle != null) {
                     this.l(
 "<div class=\"header\">",
-"<h1 class=\"title\">" + options.docTitle + "</h1>",
+"  <h1 class=\"title\">" + options.docTitle + "</h1>",
 "</div>"
                     );
                 }
+
+                String overviewFirstSentenceHtml = "";
+                try {
+                    overviewFirstSentenceHtml = html.fromTags(rootDoc.firstSentenceTags(), rootDoc, rootDoc);
+                } catch (Longjump l) {}
+
+                if (!overviewFirstSentenceHtml.isEmpty()) {
+                    this.l(
+overviewFirstSentenceHtml,
+"<p>See: <a href=\"#description\">Description</a></p>"
+                    );
+                }
             },
-            () -> {},                          // epilog
+            () -> {                            // epilog
+
+                String overviewHtml = "";
+                try {
+                    overviewHtml = html.fromTags(rootDoc.inlineTags(), rootDoc, rootDoc);
+                } catch (Longjump l) {}
+
+                if (!overviewHtml.isEmpty()) {
+                    this.l(
+"<a name=\"description\">",
+overviewHtml
+                    );
+                }
+            },
             sections
         );
     }

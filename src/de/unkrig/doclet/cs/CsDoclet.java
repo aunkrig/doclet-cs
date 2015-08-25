@@ -44,8 +44,6 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
-
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
@@ -71,6 +69,7 @@ import de.unkrig.notemplate.javadocish.IndexPages;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -292,7 +291,7 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "checkstyle-metadata.properties"),
                     Charset.forName("ISO-8859-1"),
-                    (PrintWriter pw) -> {
+                    pw -> {
                         CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
@@ -307,7 +306,7 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "checkstyle-metadata.xml"),
                     Charset.forName("UTF-8"),
-                    (PrintWriter pw) -> {
+                    pw -> {
                         CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
@@ -321,7 +320,7 @@ class CsDoclet {
                         checkstylePackage.replace('.', File.separatorChar)
                     ), "messages.properties"),
                     Charset.forName("ISO-8859-1"),
-                    (PrintWriter pw) -> {
+                    pw -> {
                         MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
                     }
                 );
@@ -338,7 +337,7 @@ class CsDoclet {
                                 rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
                             ),
                             Charset.forName("ISO-8859-1"),
-                            (PrintWriter pw) -> {
+                            pw -> {
                                 MediawikiGenerator.generate(rule, pw, rootDoc);
                             }
                         );
@@ -385,7 +384,7 @@ class CsDoclet {
         NoTemplate.render(
             IndexHtml.class,
             new File(options.destination, "index.html"),
-            (IndexHtml indexHtml) -> { indexHtml.render(options); }
+            indexHtml -> { indexHtml.render(options); }
         );
 
         String indexLink;
@@ -400,12 +399,12 @@ class CsDoclet {
         for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(allRules)) {
 
             NoTemplate.render(
-                RuleDetailHtml.class,          // templateClass
-                new File(                      // outputFile
+                RuleDetailHtml.class, // templateClass
+                new File(             // outputFile
                     options.destination,
                     rule.current().family() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"
                 ),
-                (RuleDetailHtml ruleHtml) -> { // renderer
+                ruleHtml -> {         // renderer
                     ruleHtml.render(rule, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
@@ -415,12 +414,12 @@ class CsDoclet {
         for (ElementWithContext<Quickfix> quickfix : IterableUtil.iterableWithContext(allQuickfixes)) {
 
             NoTemplate.render(
-                QuickfixDetailHtml.class,              // templateClass
-                new File(                              // outputFile
+                QuickfixDetailHtml.class, // templateClass
+                new File(                 // outputFile
                     options.destination,
                     "quickfixes/" + ((ClassDoc) quickfix.current().ref()).simpleTypeName() + ".html"
                 ),
-                (QuickfixDetailHtml quickfixHtml) -> { // renderer
+                quickfixHtml -> {         // renderer
                     quickfixHtml.render(quickfix, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
@@ -431,7 +430,7 @@ class CsDoclet {
         NoTemplate.render(
             AllRulesFrameHtml.class,
             new File(options.destination, "allrules-frame.html"),
-            (AllRulesFrameHtml allRulesFrameHtml) -> {
+            allRulesFrameHtml -> {
                 allRulesFrameHtml.render(allRules, allQuickfixes, rootDoc, options, html);
             }
         );
@@ -441,7 +440,7 @@ class CsDoclet {
         NoTemplate.render(
             OverviewSummaryHtml.class,
             new File(options.destination, "overview-summary.html"),
-            (OverviewSummaryHtml overviewSummaryHtml) -> {
+            overviewSummaryHtml -> {
                 overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, indexLink, html);
             }
         );
