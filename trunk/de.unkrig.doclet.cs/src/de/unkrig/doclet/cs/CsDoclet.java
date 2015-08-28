@@ -251,7 +251,7 @@ class CsDoclet {
         }));
 
         // Process all specified packages.
-        Collection<Rule>         allRules      = new ArrayList<Rule>();
+        Collection<Rule>     allRules      = new ArrayList<Rule>();
         Collection<Quickfix> allQuickfixes = new ArrayList<Quickfix>();
         for (PackageDoc pd : rootDoc.specifiedPackages()) {
             String checkstylePackage = pd.name();
@@ -266,86 +266,83 @@ class CsDoclet {
                 }
             }
 
-            final Collection<Rule> rulesInPackage;
             try {
-                rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc, html);
-            } catch (Longjump l) {
-                continue;
-            }
-            allRules.addAll(rulesInPackage);
+                final Collection<Rule> rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc, html);
+
+                if (!rulesInPackage.isEmpty()) {
+
+                    allRules.addAll(rulesInPackage);
+
+                    // Generate 'checkstyle-metadata.properties' for the package.
+                    if (checkstyleMetadataDotPropertiesDir != null) {
+
+                        CsDoclet.printToFile(
+                            new File(new File(
+                                checkstyleMetadataDotPropertiesDir,
+                                checkstylePackage.replace('.', File.separatorChar)
+                            ), "checkstyle-metadata.properties"),
+                            Charset.forName("ISO-8859-1"),
+                            pw -> {
+                                CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
+                            }
+                        );
+                    }
+
+                    // Generate 'checkstyle-metadata.xml' for the package.
+                    if (checkstyleMetadataDotPropertiesDir != null) {
+
+                        CsDoclet.printToFile(
+                            new File(new File(
+                                checkstyleMetadataDotPropertiesDir,
+                                checkstylePackage.replace('.', File.separatorChar)
+                            ), "checkstyle-metadata.xml"),
+                            Charset.forName("UTF-8"),
+                            pw -> {
+                                CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
+                            }
+                        );
+                    }
+
+                    // Generate 'messages.properties' for the package.
+                    if (messagesDotPropertiesDir != null) {
+                        CsDoclet.printToFile(
+                            new File(new File(
+                                checkstyleMetadataDotPropertiesDir,
+                                checkstylePackage.replace('.', File.separatorChar)
+                            ), "messages.properties"),
+                            Charset.forName("ISO-8859-1"),
+                            pw -> {
+                                MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
+                            }
+                        );
+                    }
+
+                    // Generate MediaWiki markup documents for each rule in the package.
+                    if (mediawikiDir != null) {
+
+                        for (final Rule rule : rulesInPackage) {
+                            try {
+                                CsDoclet.printToFile(
+                                    new File(
+                                        new File(mediawikiDir, rule.family()),
+                                        rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
+                                    ),
+                                    Charset.forName("ISO-8859-1"),
+                                    pw -> {
+                                        MediawikiGenerator.generate(rule, pw, rootDoc);
+                                    }
+                                );
+                            } catch (Longjump l) {}
+                        }
+                    }
+                }
+            } catch (Longjump l) {}
 
             final Collection<Quickfix> quickfixesInPackage;
             try {
                 quickfixesInPackage = CsDoclet.quickfixes(classDocs.values(), rootDoc, html);
-            } catch (Longjump l) {
-                continue;
-            }
-            allQuickfixes.addAll(quickfixesInPackage);
-
-            // Generate 'checkstyle-metadata.properties' for the package.
-            if (checkstyleMetadataDotPropertiesDir != null) {
-
-                CsDoclet.printToFile(
-                    new File(new File(
-                        checkstyleMetadataDotPropertiesDir,
-                        checkstylePackage.replace('.', File.separatorChar)
-                    ), "checkstyle-metadata.properties"),
-                    Charset.forName("ISO-8859-1"),
-                    pw -> {
-                        CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
-                    }
-                );
-            }
-
-            // Generate 'checkstyle-metadata.xml' for the package.
-            if (checkstyleMetadataDotPropertiesDir != null) {
-
-                CsDoclet.printToFile(
-                    new File(new File(
-                        checkstyleMetadataDotPropertiesDir,
-                        checkstylePackage.replace('.', File.separatorChar)
-                    ), "checkstyle-metadata.xml"),
-                    Charset.forName("UTF-8"),
-                    pw -> {
-                        CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
-                    }
-                );
-            }
-
-            // Generate 'messages.properties' for the package.
-            if (messagesDotPropertiesDir != null) {
-                CsDoclet.printToFile(
-                    new File(new File(
-                        checkstyleMetadataDotPropertiesDir,
-                        checkstylePackage.replace('.', File.separatorChar)
-                    ), "messages.properties"),
-                    Charset.forName("ISO-8859-1"),
-                    pw -> {
-                        MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
-                    }
-                );
-            }
-
-            // Generate MediaWiki markup documents for each rule in the package.
-            if (mediawikiDir != null) {
-
-                for (final Rule rule : rulesInPackage) {
-                    try {
-                        CsDoclet.printToFile(
-                            new File(
-                                new File(mediawikiDir, rule.family()),
-                                rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
-                            ),
-                            Charset.forName("ISO-8859-1"),
-                            pw -> {
-                                MediawikiGenerator.generate(rule, pw, rootDoc);
-                            }
-                        );
-                    } catch (Longjump l) {
-                        ;
-                    }
-                }
-            }
+                allQuickfixes.addAll(quickfixesInPackage);
+            } catch (Longjump l) {}
         }
 
         // Generate HTML (JAVADOCish) documentation.
