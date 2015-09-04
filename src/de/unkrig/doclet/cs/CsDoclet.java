@@ -375,7 +375,7 @@ class CsDoclet {
         );
 
         final Collection<IndexEntry> indexEntries       = new ArrayList<IndexEntry>();
-        Consumer<IndexEntry>         indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
+        Consumer<? super IndexEntry> indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
 
         // Render "index.html" (the frameset).
         NoTemplate.render(
@@ -492,9 +492,9 @@ class CsDoclet {
      */
     public static <EX extends Throwable> void
     printToFile(
-        File                                 file,
-        Charset                              charset,
-        ConsumerWhichThrows<PrintWriter, EX> printer
+        File                                         file,
+        Charset                                      charset,
+        ConsumerWhichThrows<? super PrintWriter, EX> printer
     ) throws IOException, EX {
 
         File directory = file.getParentFile();
@@ -673,8 +673,6 @@ class CsDoclet {
 
     /**
      * Derives a collection of quickfixes from the given {@code classDocs}.
-     *
-     * @param quickfixes Quickfixes to re-use, or the set to add new quickfixes to
      */
     public static Collection<Quickfix>
     quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {

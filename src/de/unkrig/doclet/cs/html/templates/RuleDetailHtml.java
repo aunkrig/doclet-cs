@@ -63,7 +63,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
         final RootDoc                  rootDoc,
         Options                        options,
         String                         indexLink,
-        Consumer<IndexEntry>           indexEntries
+        Consumer<? super IndexEntry>   indexEntries
     ) {
 
         final Rule previousRule = ruleTriplet.previous();
