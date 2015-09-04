@@ -55,7 +55,7 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
         final RootDoc                      rootDoc,
         Options                            options,
         String                             indexLink,
-        Consumer<IndexEntry>               indexEntries
+        Consumer<? super IndexEntry>       indexEntries
     ) {
 
         Quickfix previousQuickfix = quickfixTriplet.previous();

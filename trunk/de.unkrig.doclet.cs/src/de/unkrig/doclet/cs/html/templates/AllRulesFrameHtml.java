@@ -37,20 +37,21 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.protocol.Longjump;
-import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
+import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractBottomLeftFrameHtml;
 
-public class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
+public
+class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
 
     public void
     render(
-        final Collection<Rule>         rules,
+        final Collection<Rule>     rules,
         final Collection<Quickfix> quickfixes,
-        final RootDoc                  rootDoc,
-        Options                        options,
-        final Html                     html
+        final RootDoc              rootDoc,
+        Options                    options,
+        final Html                 html
     ) {
 
         super.rBottomLeftFrameHtml(
