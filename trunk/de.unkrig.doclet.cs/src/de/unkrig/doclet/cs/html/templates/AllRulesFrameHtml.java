@@ -42,9 +42,15 @@ import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractBottomLeftFrameHtml;
 
+/**
+ * Renders the "all rules" frame (on the left 20% of the frame set).
+ */
 public
 class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
 
+    /**
+     * Renders the "all rules" frame (on the left 20% of the frame set).
+     */
     public void
     render(
         final Collection<Rule>     rules,

@@ -44,6 +44,8 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
+
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
@@ -69,7 +71,6 @@ import de.unkrig.notemplate.javadocish.IndexPages;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 /**
  * A doclet that creates ECLIPSE-CS metadata files and/or documentation for CheckStyle rules in MediaWiki markup
@@ -87,7 +88,24 @@ class CsDoclet {
 
     public static LanguageVersion languageVersion() { return LanguageVersion.JAVA_1_5; }
 
-    enum IndexStyle { NONE, SINGLE, SPLIT }
+    enum IndexStyle {
+
+        /**
+         * Do not generate an index (typically due to a "-no-index" command line option).
+         */
+        NONE,
+
+        /**
+         * Generate an index on a single page (typically the default).
+         */
+        SINGLE,
+
+        /**
+         * Generate an index with one page per initial ("A", "B", ...) (typically due to a "-split-index" command line
+         * option).
+         */
+        SPLIT,
+    }
 
     /**
      * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
@@ -374,8 +392,8 @@ class CsDoclet {
             true                                                  // createMissingParentDirectories
         );
 
-        final Collection<IndexEntry> indexEntries       = new ArrayList<IndexEntry>();
-        Consumer<? super IndexEntry> indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
+        final Collection<IndexEntry>       indexEntries       = new ArrayList<IndexEntry>();
+        final Consumer<? super IndexEntry> indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
 
         // Render "index.html" (the frameset).
         NoTemplate.render(

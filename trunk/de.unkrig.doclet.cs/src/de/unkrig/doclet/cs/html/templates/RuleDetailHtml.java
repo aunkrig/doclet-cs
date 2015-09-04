@@ -56,6 +56,9 @@ class RuleDetailHtml extends AbstractDetailHtml {
 
     private static final MessageFormat TITLE_MF = new MessageFormat("Task \"&lt;{0}&gt;\"");
 
+    /**
+     * Renderer for the "per-rule" documentation document.
+     */
     public void
     render(
         final ElementWithContext<Rule> ruleTriplet,

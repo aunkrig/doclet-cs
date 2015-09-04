@@ -48,6 +48,9 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
+    /**
+     * Renderer for the "per-rule" documentation document.
+     */
     public void
     render(
         final ElementWithContext<Quickfix> quickfixTriplet,
