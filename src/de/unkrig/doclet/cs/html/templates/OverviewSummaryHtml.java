@@ -47,11 +47,17 @@ import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractSummaryHtml;
 
+/**
+ * Renders the "overview summary" page.
+ */
 public
 class OverviewSummaryHtml extends AbstractSummaryHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
+    /**
+     * Renders the "overview summary" page.
+     */
     public void
     render(
         Collection<Rule>     rules,
@@ -78,8 +84,8 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
         List<Section> sections = new ArrayList<Section>();
         for (Entry<String, Collection<Rule>> e : rulesByFamily.entrySet()) {
-            String           family        = e.getKey();
-            Collection<Rule> rulesOfFamily = e.getValue();
+            String                 family        = e.getKey();
+            final Collection<Rule> rulesOfFamily = e.getValue();
 
             Section section = new Section();
             section.anchor             = family;

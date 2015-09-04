@@ -29,11 +29,18 @@ package de.unkrig.doclet.cs.html.templates;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractIndexHtml;
 
+/**
+ * Renders the frame set document.
+ */
 public
 class IndexHtml extends AbstractIndexHtml {
 
+    /**
+     * Renders the frame set document.
+     */
     public void
     render(Options options) {
+
         super.rIndex(
             null,                                   // topLeftFrameName
             null,                                   // topLeftFrameLink
