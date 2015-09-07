@@ -89,10 +89,10 @@ class RuleDetailHtml extends AbstractDetailHtml {
 
             SectionItem propertyItem = new SectionItem();
 
-            propertyItem.anchor           = property.name();
-            propertyItem.name             = property.name();
-            propertyItem.shortDescription = property.shortDescription();
-            propertyItem.content          = property.longDescription();
+            propertyItem.anchor            = property.name();
+            propertyItem.summaryTableCells = new String[] { property.name(), property.shortDescription() };
+            propertyItem.detailTitle       = property.name() + "=\"true|false\"";
+            propertyItem.detailContent     = property.longDescription();
 
             propertyItems.add(propertyItem);
 
@@ -110,12 +110,13 @@ class RuleDetailHtml extends AbstractDetailHtml {
         }
 
         Section propertiesSection = new Section();
-        propertiesSection.anchor                 = "property";
-        propertiesSection.namePlural             = "Properties";
-        propertiesSection.nameSingular           = "Property";
-        propertiesSection.summary                = rule.shortDescription();
-        propertiesSection.summaryLeftColumnTitle = "Property Name and Description";
-        propertiesSection.items                  = propertyItems;
+        propertiesSection.anchor               = "property";
+        propertiesSection.navigationLinkLabel  = "Props";
+        propertiesSection.summaryTitle1        = "Property Summary";
+        propertiesSection.summaryTitle2        = "Properties";
+        propertiesSection.summaryTableHeadings = new String[] { "Name", "Description" };
+        propertiesSection.detailTitle          = "Property Detail";
+        propertiesSection.items                = propertyItems;
 
         super.rDetail(
             RuleDetailHtml.TITLE_MF.format(new String[] { rule.name() }), // windowTitle
@@ -129,11 +130,11 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 "Help",       "../help-doc.html",
             },
             new String[] {                                                // nav2
-                previousRule == null ? "Prev Rule" : "<a href=\"\">Prev Rule</a>",
-                nextRule     == null ? "Next Rule" : "<a href=\"\">Next Rule</a>",
+                previousRule == null ? "Prev Rule" : "<a href=\"" + previousRule.simpleName() + ".html\"><span class=\"typeNameLink\">Prev Rule</span></a>",
+                nextRule     == null ? "Next Rule" : "<a href=\"" +     nextRule.simpleName() + ".html\"><span class=\"typeNameLink\">Next Rule</span></a>",
             },
             new String[] {                                                // nav3
-                "Frames",    "../index.html?" + rule.family() + "/" + rule.name().replace(':', '_') + ".html",
+                "Frames",    "../index.html?" + rule.family() + "/" + rule.simpleName() + ".html",
                 "No Frames", "#top",
             },
             new String[] {                                                // nav4
@@ -147,8 +148,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 );
                 this.l(rule.longDescription());
                 RuleDetailHtml.this.l(
-"  </div>",
-"</div>"
+"  </div>"
                 );
             },
             Collections.singletonList(propertiesSection)
