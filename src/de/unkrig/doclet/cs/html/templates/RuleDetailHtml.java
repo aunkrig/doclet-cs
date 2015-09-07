@@ -26,20 +26,27 @@
 
 package de.unkrig.doclet.cs.html.templates;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import net.sf.eclipsecs.core.config.meta.IOptionProvider;
+
+import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.RootDoc;
+import com.sun.javadoc.SourcePosition;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
+import de.unkrig.commons.lang.protocol.Longjump;
+import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
-import de.unkrig.notemplate.HtmlTemplate;
 import de.unkrig.notemplate.javadocish.IndexPages;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
@@ -53,8 +60,6 @@ public
 class RuleDetailHtml extends AbstractDetailHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
-
-    private static final MessageFormat TITLE_MF = new MessageFormat("Task \"&lt;{0}&gt;\"");
 
     /**
      * Renderer for the "per-rule" documentation document.
@@ -75,7 +80,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
 
         // Index entry for rule.
         {
-            String ruleLink = rule.family() + "/" + rule.ref().name().replace('.', '/');
+            String ruleLink = rule.familyPlural() + "/" + rule.ref().name().replace('.', '/');
             indexEntries.consume(IndexPages.indexEntry(
                 rule.name(),            // key
                 ruleLink,               // link
@@ -87,18 +92,98 @@ class RuleDetailHtml extends AbstractDetailHtml {
         List<SectionItem> propertyItems = new ArrayList<SectionItem>();
         for (RuleProperty property : rule.properties()) {
 
+            Object defaultValue;
+            {
+                Object tmp = property.defaultValue();
+                if (tmp == null) tmp = property.overrideDefaultValue();
+                defaultValue = tmp;
+            }
+
+            String nav = property.name() + " = ";
+
+            switch (property.datatype()) {
+
+            case BOOLEAN:
+                nav += "\"" + RuleDetailHtml.catValues(
+                    new String[] { "true", "false" },                      // values
+                    defaultValue == null ? null : defaultValue.toString(), // defaultValue
+                    " | "                                                  // glue
+                ) + "\"";
+                break;
+
+            case MULTI_CHECK:
+                try {
+                    nav += "\"" + RuleDetailHtml.catValues(
+                        RuleDetailHtml.valueOptions( // values
+                            property.ref().position(), // position
+                            property.optionProvider(), // optionProvider
+                            property.valueOptions(),   // valueOptions
+                            rootDoc                    // docErrorReporter
+                        ),
+                        (                            // defaultValues
+                            defaultValue == null ? new Object[0] : ((String) defaultValue).split(",")
+                        ),
+                        ", "                         // glue
+                    ) + "\"";
+                } catch (Longjump l) {
+                    nav += "???";
+                }
+                break;
+
+            case REGEX:
+                nav += (
+                    "\"''[http://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html#sum "
+                    + property.datatype()
+                    + "]''\""
+                );
+                if (defaultValue != null) {
+                    nav += " (optional; default value is \"" + defaultValue + "\")";
+                }
+                break;
+
+            case SINGLE_SELECT:
+                try {
+                    nav += "\"" + RuleDetailHtml.catValues(
+                        RuleDetailHtml.valueOptions( // values
+                            property.ref().position(), // position
+                            property.optionProvider(), // optionProvider
+                            property.valueOptions(),   // valueOptions
+                            rootDoc                    // docErrorReporter
+                        ),
+                        defaultValue,                // defaultValue
+                        " | "                        // glue
+                    ) + "\"";
+                } catch (Longjump l) {
+                    nav += "???";
+                }
+                break;
+
+
+            case FILE:
+            case HIDDEN:
+            case INTEGER:
+            case STRING:
+                nav += "\"<i>" + property.datatype() + "</i>\"";
+                if (defaultValue == null) {
+                    nav += " (mandatory)";
+                } else {
+                    nav += " (optional; default value is " + defaultValue + ")";
+                }
+                break;
+            }
+
             SectionItem propertyItem = new SectionItem();
 
             propertyItem.anchor            = property.name();
             propertyItem.summaryTableCells = new String[] { property.name(), property.shortDescription() };
-            propertyItem.detailTitle       = property.name() + "=\"true|false\"";
+            propertyItem.detailTitle       = nav;
             propertyItem.detailContent     = property.longDescription();
 
             propertyItems.add(propertyItem);
 
             // Index entry for rule property.
             {
-                String ruleLink     = rule.family() + "/" + rule.ref().name().replace('.', '/');
+                String ruleLink     = rule.familyPlural() + "/" + rule.ref().name().replace('.', '/');
                 String propertyLink = ruleLink + "#property_" + property.name();
                 indexEntries.consume(IndexPages.indexEntry(
                     property.name(),                                                         // key
@@ -118,30 +203,31 @@ class RuleDetailHtml extends AbstractDetailHtml {
         propertiesSection.detailTitle          = "Property Detail";
         propertiesSection.items                = propertyItems;
 
+        String familyCap = StringUtil.firstLetterToUpperCase(rule.familySingular());
         super.rDetail(
-            RuleDetailHtml.TITLE_MF.format(new String[] { rule.name() }), // windowTitle
-            options,                                                      // options
-            new String[] { "../stylesheet.css", "../stylesheet2.css" },   // stylesheetLinks
-            new String[] {                                                // nav1
+            familyCap + " \"" + rule.name() + "\"",                     // windowTitle
+            options,                                                    // options
+            new String[] { "../stylesheet.css", "../stylesheet2.css" }, // stylesheetLinks
+            new String[] {                                              // nav1
                 "Overview",   "../overview-summary.html",
-                "Rule",       AbstractRightFrameHtml.HIGHLIT,
+                familyCap,    AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
                 "Index",      "../" + indexLink,
                 "Help",       "../help-doc.html",
             },
             new String[] {                                                // nav2
-                previousRule == null ? "Prev Rule" : "<a href=\"" + previousRule.simpleName() + ".html\"><span class=\"typeNameLink\">Prev Rule</span></a>",
-                nextRule     == null ? "Next Rule" : "<a href=\"" +     nextRule.simpleName() + ".html\"><span class=\"typeNameLink\">Next Rule</span></a>",
+                previousRule == null ? "Prev " + familyCap : "<a href=\"" + previousRule.simpleName() + ".html\"><span class=\"typeNameLink\">Prev " + familyCap + "</span></a>",
+                nextRule     == null ? "Next " + familyCap : "<a href=\"" +     nextRule.simpleName() + ".html\"><span class=\"typeNameLink\">Next " + familyCap + "</span></a>",
             },
             new String[] {                                                // nav3
-                "Frames",    "../index.html?" + rule.family() + "/" + rule.simpleName() + ".html",
+                "Frames",    "../index.html?" + rule.familyPlural() + "/" + rule.simpleName() + ".html",
                 "No Frames", "#top",
             },
             new String[] {                                                // nav4
                 "All Rules", "../allrules-noframe.html",
             },
-            HtmlTemplate.esc(rule.family()),                              // subtitle
-            rule.family() + " " + rule.name(),                            // title
+            null,                                                         // subtitle
+            familyCap + " \"" + rule.name() + "\"",                       // title
             () -> {                                                       // prolog
                 RuleDetailHtml.this.l(
 "  <div class=\"description\">"
@@ -153,5 +239,104 @@ class RuleDetailHtml extends AbstractDetailHtml {
             },
             Collections.singletonList(propertiesSection)
         );
+    }
+
+    /**
+     * @return The value options for the given setter method
+     */
+    private static String[]
+    valueOptions(
+        SourcePosition         position,
+        @Nullable Class<?>     optionProvider,
+        @Nullable String[]     valueOptions,
+        final DocErrorReporter docErrorReporter
+    ) throws Longjump {
+
+        String[] result;
+        if (optionProvider == null) {
+            if (valueOptions == null) {
+                docErrorReporter.printError(position, "Both option provider and value options are missing");
+                throw new Longjump();
+            }
+            result = valueOptions;
+        } else
+        if (valueOptions != null) {
+            docErrorReporter.printError(position, "Option provider and value options are mutually exclusive");
+            throw new Longjump();
+        } else
+        {
+
+            if (optionProvider.getSuperclass() == Enum.class) {
+                Object[] tmp;
+                try {
+                    tmp = (Object[]) optionProvider.getDeclaredMethod("values").invoke(null);
+                } catch (Exception e) {
+                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
+                    throw new Longjump();
+                }
+                result = new String[tmp.length];
+                for (int i = 0; i < tmp.length; i++) {
+                    result[i] = ((Enum<?>) tmp[i]).name().toLowerCase();
+                }
+            } else
+            if (IOptionProvider.class.isAssignableFrom(optionProvider)) {
+                List<?> tmp;
+                try {
+                    tmp = (List<?>) optionProvider.getDeclaredMethod("getOptions").invoke(optionProvider.newInstance());
+                } catch (Exception e) {
+                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
+                    throw new Longjump();
+                }
+                result = tmp.toArray(new String[0]);
+            } else
+            {
+                docErrorReporter.printError(position, (
+                    ""
+                    + "Option provider class '"
+                    + optionProvider
+                    + "' must either extend 'Enum' or implement 'IOptionProvider'"
+                ));
+                throw new Longjump();
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Concatenate the given {@code values}, separated with {@code glue}, and underline the value which equals the
+     * {@code defaultValue}.
+     */
+    private static String
+    catValues(String[] values, @Nullable Object defaultValue, String glue) {
+
+        return RuleDetailHtml.catValues(
+            values,
+            defaultValue == null ? new Object[0] : new Object[] { defaultValue }, glue
+        );
+    }
+
+    /**
+     * Concatenate the given {@code values}, separated with {@code glue}, and underline the values which are also
+     * contained in {@code defaultValue}.
+     */
+    private static String
+    catValues(String[] values, Object[] defaultValues, String glue) {
+        assert values.length >= 1;
+
+        Set<Object>   dvs = new HashSet<Object>();
+        for (Object o : defaultValues) dvs.add(o.toString());
+
+        StringBuilder sb  = new StringBuilder();
+        for (int i = 0;;) {
+            String value = values[i];
+            if (dvs.contains(value)) {
+                sb.append("<u>" + value + "</u>");
+            } else {
+                sb.append(value);
+            }
+            if (++i == values.length) break;
+            sb.append(glue);
+        }
+        return sb.toString();
     }
 }

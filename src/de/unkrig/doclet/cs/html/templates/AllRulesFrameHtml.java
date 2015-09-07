@@ -36,6 +36,7 @@ import java.util.TreeSet;
 import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
+import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
@@ -61,81 +62,89 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
     ) {
 
         super.rBottomLeftFrameHtml(
-            "All types",                       // heading
+            "All rules",                       // heading
             "overview-summary.html",           // headingLink
             options,                           // options
             new String[] { "stylesheet.css" }, // stylesheetLinks
             () -> {                            // renderBody
                 AllRulesFrameHtml.this.l(
-"    <dl>"
+"    <div class=\"indexContainer \">"
                 );
 
                 Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
                 for (Rule rule : rules) {
 
-                    Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.family());
+                    Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.familyPlural());
                     if (rulesOfFamily == null) {
                         rulesOfFamily = new TreeSet<Rule>(new Comparator<Rule>() {
                             @Override public int compare(Rule r1, Rule r2) { return r1.name().compareTo(r2.name()); }
                         });
-                        rulesByFamily.put(rule.family(), rulesOfFamily);
+                        rulesByFamily.put(rule.familyPlural(), rulesOfFamily);
                     }
 
                     rulesOfFamily.add(rule);
                 }
 
                 for (Entry<String, Collection<Rule>> e : rulesByFamily.entrySet()) {
-                    String           family        = e.getKey();
+                    String           familyPlural  = e.getKey();
                     Collection<Rule> rulesOfFamily = e.getValue();
 
 
                     AllRulesFrameHtml.this.l(
-"      <dt>" + family + "</dt>"
+"      <h2>" + StringUtil.firstLetterToUpperCase(familyPlural) + "</h2>",
+"      <ul>"
                     );
 
                     for (Rule rule : rulesOfFamily) {
                         try {
                             String link = html.makeLink(
-                               rootDoc,      // from
-                               rule.ref(),   // to
-                               false,        // plain
-                               null,         // label
-                               "ruleFrame",  // target
-                               rootDoc       // rootDoc
+                               rootDoc,     // from
+                               rule.ref(),  // to
+                               true,        // plain
+                               rule.name(), // label
+                               "ruleFrame", // target
+                               rootDoc      // rootDoc
                             );
                             AllRulesFrameHtml.this.l(
-"      <dd><code>" + link + "</code></dd>"
+"        <li>" + link + "</li>"
                             );
                         } catch (Longjump l) {
                             ;
                         }
                     }
+                    this.l(
+"      </ul>"
+                    );
                 }
 
                 AllRulesFrameHtml.this.l(
-                    "      <dt>Quickfixes</dt>"
+"      <h2>Quickfixes</h2>",
+"      <ul>"
                 );
 
                 for (Quickfix quickfix : quickfixes) {
                     try {
                         String link = html.makeLink(
-                            rootDoc,        // from
-                            quickfix.ref(), // to
-                            false,          // plain
-                            null,           // label
-                            "ruleFrame",    // target
-                            rootDoc         // rootDoc
+                            rootDoc,          // from
+                            quickfix.ref(),   // to
+                            true,             // plain
+                            quickfix.label(), // label
+                            "ruleFrame",      // target
+                            rootDoc           // rootDoc
                         );
                         AllRulesFrameHtml.this.l(
-"      <dd><code>" + link + "</code></dd>"
+"        <li>" + link + "</li>"
                         );
                     } catch (Longjump l) {
                         ;
                     }
                 }
+                this.l(
+"      </ul>"
+                );
 
                 AllRulesFrameHtml.this.l(
-"    </dl>"
+"    </div>"
                 );
             }
         );

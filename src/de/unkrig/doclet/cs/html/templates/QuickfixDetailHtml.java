@@ -87,8 +87,8 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
             new String[] {                                              // nav4
                 "All Rules", "../allrules-noframe.html",
             },
-            "Quickfix",                                                 // subtitle
-            "Quickfix " + quickfix.label(),                             // title
+            null,                                                       // subtitle
+            "Quickfix \"" + quickfix.label() + "\"",                    // title
             () -> {                                                     // prolog
                 QuickfixDetailHtml.this.l(
 "  <div class=\"description\">"
@@ -101,5 +101,8 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
             },
             Collections.emptyList()                                     // sections
         );
+
+        boolean a1 = true, b1 = false;
+        boolean bb = a1 = b1;
     }
 }
