@@ -54,13 +54,24 @@ import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
+import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.lang.protocol.ConsumerUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
+import de.unkrig.commons.text.CamelCase;
 import de.unkrig.commons.util.collections.IterableUtil;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
+import de.unkrig.csdoclet.annotation.BooleanRuleProperty;
+import de.unkrig.csdoclet.annotation.FileRuleProperty;
+import de.unkrig.csdoclet.annotation.HiddenRuleProperty;
+import de.unkrig.csdoclet.annotation.IntegerRuleProperty;
+import de.unkrig.csdoclet.annotation.MultiCheckRuleProperty;
+import de.unkrig.csdoclet.annotation.RegexRuleProperty;
+import de.unkrig.csdoclet.annotation.SingleSelectRuleProperty;
+import de.unkrig.csdoclet.annotation.StringRuleProperty;
+import de.unkrig.doclet.cs.CsDoclet.RuleProperty.Datatype;
 import de.unkrig.doclet.cs.html.templates.AllRulesFrameHtml;
 import de.unkrig.doclet.cs.html.templates.IndexHtml;
 import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
@@ -78,6 +89,8 @@ import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
  */
 public final
 class CsDoclet {
+
+    static { AssertionUtil.enableAssertionsForThisClass(); }
 
     /**
      * Doclets are never instantiated.
@@ -342,7 +355,7 @@ class CsDoclet {
                             try {
                                 CsDoclet.printToFile(
                                     new File(
-                                        new File(mediawikiDir, rule.family()),
+                                        new File(mediawikiDir, rule.familyPlural()),
                                         rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
                                     ),
                                     Charset.forName("ISO-8859-1"),
@@ -417,7 +430,7 @@ class CsDoclet {
                 RuleDetailHtml.class, // templateClass
                 new File(             // outputFile
                     options.destination,
-                    rule.current().family() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"
+                    rule.current().familyPlural() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"
                 ),
                 ruleHtml -> {         // renderer
                     ruleHtml.render(rule, html, rootDoc, options, indexLink, indexEntryConsumer);
@@ -611,8 +624,11 @@ class CsDoclet {
         /** @return The doc comment of the Java element that implements this rule */
         Doc ref();
 
+        /** @return The family to which this rule belongs ("check" or "filter") */
+        String familySingular();
+
         /** @return The family to which this rule belongs ("checks" or "filters") */
-        String family();
+        String familyPlural();
 
         /** @return The ID of the group to which this rule belongs */
         String group();
@@ -666,12 +682,14 @@ class CsDoclet {
             AnnotationDesc ra = Annotations.get(classDoc, "Rule");
             if (ra == null) continue;
 
-            String family;
+            String familySingular, familyPlural;
             if (Docs.isSubclassOf(classDoc, checkClass)) {
-                family = "checks";
+                familySingular = "check";
+                familyPlural   = "checks";
             } else
             if (Docs.isSubclassOf(classDoc, filterClass)) {
-                family = "filters";
+                familySingular = "filter";
+                familyPlural   = "filters";
             } else
             {
                 rootDoc.printError(classDoc.position(), "Rule cannot be identified as a check or a filter");
@@ -680,7 +698,7 @@ class CsDoclet {
 
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, family, html));
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, html));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -702,6 +720,8 @@ class CsDoclet {
         for (final ClassDoc classDoc : classDocs) {
 
             if (!Docs.isSubclassOf(classDoc, quickfixInterface)) continue;
+
+            if (classDoc.isAbstract()) continue;
 
             try {
 
@@ -747,8 +767,14 @@ class CsDoclet {
      * Parses a CheckStyle rule.
      */
     private static Rule
-    rule(AnnotationDesc ruleAnnotation, final ClassDoc classDoc, RootDoc rootDoc, final String family, Html html)
-    throws Longjump {
+    rule(
+        AnnotationDesc ruleAnnotation,
+        final ClassDoc classDoc,
+        RootDoc        rootDoc,
+        final String   familySingular,
+        String         familyPlural,
+        Html           html
+    ) throws Longjump {
 
         // CHECKSTYLE LineLength:OFF
         final String     group            = Annotations.getElementValue(ruleAnnotation, "group", String.class);
@@ -823,7 +849,8 @@ class CsDoclet {
 
         return new Rule() {
             @Override public Doc                       ref()               { return classDoc;         }
-            @Override public String                    family()            { return family;           }
+            @Override public String                    familySingular()    { return familySingular;   }
+            @Override public String                    familyPlural()      { return familyPlural;     }
             @Override public String                    group()             { return group;            }
             @Override public String                    groupName()         { return groupName;        }
             @Override public String                    simpleName()        { return simpleName;       }
@@ -843,8 +870,11 @@ class CsDoclet {
     public
     interface RuleProperty {
 
-        /** To be displayed <i>above</i> the property; useful to form groups of properties. May contain HTML markup. */
-        @Nullable String intertitle();
+        /**
+         * The possible data types, as defined <a href="http://eclipse-cs.sourceforge.net/dtds/checkstyle-met
+         *adata_1_1.dtd">here</a>, in alphabetical order.
+         */
+        enum Datatype { BOOLEAN, FILE, HIDDEN, INTEGER, MULTI_CHECK, REGEX, SINGLE_SELECT, STRING }
 
         /** @return The doc comment from which this property originates; useful for resolution of relative names */
         Doc ref();
@@ -862,7 +892,7 @@ class CsDoclet {
          * @return The <a href="http://eclipse-cs.sourceforge.net/dtds/checkstyle-metadata_1_1.dtd">datatype</a> of
          *         this property
          */
-        String datatype();
+        Datatype datatype();
 
         /** @return The {@link IOptionProvider} for this property */
         @Nullable Class<?> optionProvider();
@@ -909,18 +939,29 @@ class CsDoclet {
         List<RuleProperty> properties = new ArrayList<RuleProperty>();
         for (final MethodDoc methodDoc : classDoc.methods(false)) {
 
-            // Is this the setter for a property?
-            // For possible 'datatype's see "http://eclipse-cs.sourceforge.net/dtds/checkstyle-metadata_1_1.dtd"
-            AnnotationDesc rpa = Annotations.get(methodDoc, "BooleanRuleProperty");
-            if (rpa == null) rpa = Annotations.get(methodDoc, "StringRuleProperty");
-            if (rpa == null) rpa = Annotations.get(methodDoc, "MultiCheckRuleProperty");
-            if (rpa == null) rpa = Annotations.get(methodDoc, "SingleSelectRuleProperty");
-            if (rpa == null) rpa = Annotations.get(methodDoc, "RegexRuleProperty");
-            if (rpa == null) rpa = Annotations.get(methodDoc, "IntegerRuleProperty");
+            // Is this method annotated as a property?
+            AnnotationDesc rpa = null;
+            SourcePosition pos = methodDoc.position();
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, BooleanRuleProperty.class,      rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, FileRuleProperty.class,         rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, HiddenRuleProperty.class,       rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, IntegerRuleProperty.class,      rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, MultiCheckRuleProperty.class,   rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, RegexRuleProperty.class,        rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, SingleSelectRuleProperty.class, rootDoc), pos, rootDoc);
+            rpa = CsDoclet.xor(rpa, Annotations.get(methodDoc, StringRuleProperty.class,       rootDoc), pos, rootDoc);
+
             if (rpa == null) continue;
 
-            // Determine the (optional) 'intertitle', which is useful to form groups of properties in a documentation.
-            final String intertitle = html.optionalTag(methodDoc, "@cs-intertitle", rootDoc);
+            // Determine the datatype.
+            final Datatype datatype;
+            {
+                String atsn = rpa.annotationType().simpleTypeName();
+                int    idx  = atsn.indexOf("RuleProperty");
+
+                assert idx != -1 : atsn;
+                datatype = Datatype.valueOf(CamelCase.toUpperCaseUnderscoreSeparated(atsn.substring(0, idx)));
+            }
 
             // Determine the property name.
             final String propertyName;
@@ -929,7 +970,7 @@ class CsDoclet {
                 if (n == null) {
                     String methodName = methodDoc.name();
                     if (!CsDoclet.SETTER.matcher(methodName).matches()) {
-                        rootDoc.printError(methodDoc.position(), "Cannot determine property name");
+                        rootDoc.printError(pos, "Cannot determine property name");
                         continue;
                     }
                     n = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
@@ -945,7 +986,7 @@ class CsDoclet {
             final Class<?> optionProvider;
             {
                 final Type t = Annotations.getElementValue(rpa, "optionProvider", Type.class);
-                optionProvider = t == null ? null : Types.loadType(methodDoc.position(), t, rootDoc);
+                optionProvider = t == null ? null : Types.loadType(pos, t, rootDoc);
             }
 
             // Determine the (optional) value options.
@@ -953,17 +994,10 @@ class CsDoclet {
 
             if (optionProvider != null && valueOptions != null) {
                 rootDoc.printError(
-                    methodDoc.position(),
+                    pos,
                     "@cs-property-option-provider and @cs-property-value-option are mutually exclusive"
                 );
                 continue;
-            }
-
-            // Determine the datatype.
-            final String datatype;
-            {
-                String s = rpa.annotationType().simpleTypeName();
-                datatype = s.substring(0, s.indexOf("RuleProperty"));
             }
 
             // Determine the default values.
@@ -974,12 +1008,11 @@ class CsDoclet {
 
             properties.add(new RuleProperty() {
 
-                @Override @Nullable public String   intertitle()           { return intertitle;           }
                 @Override public Doc                ref()                  { return methodDoc;            }
                 @Override public String             name()                 { return propertyName;         }
                 @Override public String             shortDescription()     { return shortDescription;     }
                 @Override public String             longDescription()      { return longDescription;      }
-                @Override public String             datatype()             { return datatype;             }
+                @Override public Datatype           datatype()             { return datatype;             }
                 @Override @Nullable public Class<?> optionProvider()       { return optionProvider;       }
                 @Override @Nullable public String[] valueOptions()         { return valueOptions;         }
                 @Override @Nullable public Object   defaultValue()         { return defaultValue;         }
@@ -988,5 +1021,25 @@ class CsDoclet {
         }
 
         return properties;
+    }
+
+    @Nullable private static AnnotationDesc
+    xor(
+        @Nullable AnnotationDesc rpa1,
+        @Nullable AnnotationDesc rpa2,
+        SourcePosition           position,
+        DocErrorReporter         errorReporter
+    ) {
+
+        if (rpa1 == null) {
+            return rpa2;
+        }
+
+        if (rpa2 == null) {
+            return rpa1;
+        }
+
+        errorReporter.printError(position, "\"" + rpa1 + "\" and \"" + rpa2 + "\" are mutually exclusive");
+        return rpa1;
     }
 }

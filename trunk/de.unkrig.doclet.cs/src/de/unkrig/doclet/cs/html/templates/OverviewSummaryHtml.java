@@ -40,6 +40,7 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
@@ -68,15 +69,15 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
         final Html           html
     ) {
 
-        Map<String /*family*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
+        Map<String /*familyPlural*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
         for (Rule rule : rules) {
 
-            Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.family());
+            Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.familyPlural());
             if (rulesOfFamily == null) {
                 rulesOfFamily = new TreeSet<Rule>(new Comparator<Rule>() {
                     @Override public int compare(Rule r1, Rule r2) { return r1.name().compareTo(r2.name()); }
                 });
-                rulesByFamily.put(rule.family(), rulesOfFamily);
+                rulesByFamily.put(rule.familyPlural(), rulesOfFamily);
             }
 
             rulesOfFamily.add(rule);
@@ -84,19 +85,19 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
         List<Section> sections = new ArrayList<Section>();
         for (Entry<String, Collection<Rule>> e : rulesByFamily.entrySet()) {
-            String                 family        = e.getKey();
+            String                 familyPlural  = e.getKey();
             final Collection<Rule> rulesOfFamily = e.getValue();
 
             Section section = new Section();
-            section.anchor             = family;
-            section.title              = family;
-            section.firstColumnHeading = family;
+            section.anchor             = familyPlural;
+            section.title              = StringUtil.firstLetterToUpperCase(familyPlural);
+            section.firstColumnHeading = "Name";
             section.items              = new ArrayList<SectionItem>();
-            section.summary            = family;
+            section.summary            = familyPlural;
 
             for (Rule rule : rulesOfFamily) {
                 SectionItem item = new SectionItem();
-                item.link    = family + '/' + ((ClassDoc) rule.ref()).simpleTypeName() + ".html";
+                item.link    = familyPlural + '/' + ((ClassDoc) rule.ref()).simpleTypeName() + ".html";
                 item.name    = rule.name();
                 item.summary = rule.shortDescription();
 
@@ -111,7 +112,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             Section section = new Section();
             section.anchor             = "quickfixes";
             section.title              = "Quickfixes";
-            section.firstColumnHeading = "Quickfix";
+            section.firstColumnHeading = "Name";
             section.items              = new ArrayList<SectionItem>();
             section.summary            = "Quickfixes for the checks.";
 
@@ -133,7 +134,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             new String[] { "stylesheet.css" }, // stylesheetLinks
             new String[] {                     // nav1
                 "Overview",   AbstractRightFrameHtml.HIGHLIT,
-                "Rule",       AbstractRightFrameHtml.DISABLED,
+                "Check",      AbstractRightFrameHtml.DISABLED,
                 "Deprecated", "deprecated-list.html",
                 "Index",      indexLink,
                 "Help",       "help-doc.html",
@@ -165,8 +166,12 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
                 if (!overviewFirstSentenceHtml.isEmpty()) {
                     this.l(
-overviewFirstSentenceHtml,
-"<p>See: <a href=\"#description\">Description</a></p>"
+"<div class=\"header\">",
+"  <div class=\"subTitle\">",
+"    <div class=\"block\">" + overviewFirstSentenceHtml + "</div>",
+"  </div>",
+"  <p>See: <a href=\"#description\">Description</a></p>",
+"</div>"
                     );
                 }
             },

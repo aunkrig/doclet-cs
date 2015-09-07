@@ -135,65 +135,69 @@ class MediawikiGenerator {
                 );
             }
 
-            String datatype = property.datatype().intern();
-
             String nav = property.name() + " = ";
-            if (datatype == "Boolean") { // SUPPRESS CHECKSTYLE StringLiteralEquality
+
+            switch (property.datatype()) {
+
+            case BOOLEAN:
                 nav += "\"" + MediawikiGenerator.catValues(
-                    new String[] { "true", "false" },
-                    defaultValue == null ? null : defaultValue.toString(),
-                    " | "
+                    new String[] { "true", "false" },                      // values
+                    defaultValue == null ? null : defaultValue.toString(), // defaultValue
+                    " | "                                                  // glue
                 ) + "\"";
-            } else
-            if (datatype == "SingleSelect") { // SUPPRESS CHECKSTYLE StringLiteralEquality
-                String[] values = MediawikiGenerator.valueOptions(
-                    ref.position(),
-                    property.optionProvider(),
-                    property.valueOptions(),
-                    rootDoc
-                );
-                nav += "\"" + MediawikiGenerator.catValues(values, defaultValue, " | ") + "\"";
-            } else
-            if (datatype == "MultiCheck") { // SUPPRESS CHECKSTYLE StringLiteralEquality
-                String[] values = MediawikiGenerator.valueOptions(
-                    ref.position(),
-                    property.optionProvider(),
-                    property.valueOptions(),
-                    rootDoc
-                );
+                break;
+
+            case MULTI_CHECK:
                 nav += "\"" + MediawikiGenerator.catValues(
-                    values,
-                    defaultValue == null ? new Object[0] : ((String) defaultValue).split(","), ", "
+                    MediawikiGenerator.valueOptions( // values
+                        ref.position(),            // position
+                        property.optionProvider(), // optionProvider
+                        property.valueOptions(),   // valueOptions
+                        rootDoc                    // docErrorReporter
+                    ),
+                    (                                // defaultValues
+                        defaultValue == null ? new Object[0] : ((String) defaultValue).split(",")
+                    ),
+                    ", "                             // glue
                 ) + "\"";
-            } else
-            if (datatype == "Regex") { // SUPPRESS CHECKSTYLE StringLiteralEquality
+                break;
+
+            case REGEX:
                 nav += (
                     "\"''[http://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html#sum "
-                    + datatype
+                    + property.datatype()
                     + "]''\""
                 );
                 if (defaultValue != null) {
                     nav += " (optional; default value is \"" + defaultValue + "\")";
                 }
-            } else
-            {
-                nav += "\"<i>" + datatype + "</i>\"";
-                if (defaultValue != null) {
-                    nav += " (optional; default value is " + defaultValue + ")";
-                } else {
-                    nav += " (mandatory)";
-                }
-            }
+                break;
 
-            String intertitle = property.intertitle();
-            if (intertitle != null) {
-                try {
-                    intertitle = MediawikiGenerator.html.fromJavadocText(intertitle, ref, rootDoc);
-                    intertitle = Mediawiki.fromHtml(intertitle);
-                    pw.printf("%1$s%n%n", intertitle);
-                } catch (Longjump de) {
-                    ; // SUPPRESS CHECKSTYLE AvoidHidingCause
+            case SINGLE_SELECT:
+                nav += "\"" + MediawikiGenerator.catValues(
+                    MediawikiGenerator.valueOptions( // values
+                        ref.position(),            // position
+                        property.optionProvider(), // optionProvider
+                        property.valueOptions(),   // valueOptions
+                        rootDoc                    // docErrorReporter
+                    ),
+                    defaultValue,                    // defaultValue
+                    " | "                            // glue
+                ) + "\"";
+                break;
+
+
+            case FILE:
+            case HIDDEN:
+            case INTEGER:
+            case STRING:
+                nav += "\"<i>" + property.datatype() + "</i>\"";
+                if (defaultValue == null) {
+                    nav += " (mandatory)";
+                } else {
+                    nav += " (optional; default value is " + defaultValue + ")";
                 }
+                break;
             }
 
             String longDescription = Mediawiki.fromHtml(property.longDescription());
