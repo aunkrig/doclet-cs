@@ -29,16 +29,11 @@ package de.unkrig.doclet.cs;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
 
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.Doc;
-import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.RootDoc;
-import com.sun.javadoc.SourcePosition;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.doclet.mediawiki.Mediawiki;
@@ -46,6 +41,7 @@ import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
+import de.unkrig.doclet.cs.CsDoclet.ValueOption;
 
 /**
  * Generates <a href="http://www.mediawiki.org/wiki/Help:Formatting">MediaWiki markup</a> from JAVADOC.
@@ -141,24 +137,23 @@ class MediawikiGenerator {
 
             case BOOLEAN:
                 nav += "\"" + MediawikiGenerator.catValues(
-                    new String[] { "true", "false" },                      // values
-                    defaultValue == null ? null : defaultValue.toString(), // defaultValue
-                    " | "                                                  // glue
+                    new String[] { "true", "false" }, // values
+                    (                                 // defaultValues
+                        defaultValue == null
+                        ? new String[0]
+                        : new String[] { defaultValue.toString() }
+                    ),
+                    " | "                             // glue
                 ) + "\"";
                 break;
 
             case MULTI_CHECK:
                 nav += "\"" + MediawikiGenerator.catValues(
-                    MediawikiGenerator.valueOptions( // values
-                        ref.position(),            // position
-                        property.optionProvider(), // optionProvider
-                        property.valueOptions(),   // valueOptions
-                        rootDoc                    // docErrorReporter
-                    ),
-                    (                                // defaultValues
+                    property.optionProvider().valueOptions(), // valueOptions
+                    (                                         // defaultValues
                         defaultValue == null ? new Object[0] : ((String) defaultValue).split(",")
                     ),
-                    ", "                             // glue
+                    ", "                                      // glue
                 ) + "\"";
                 break;
 
@@ -175,14 +170,13 @@ class MediawikiGenerator {
 
             case SINGLE_SELECT:
                 nav += "\"" + MediawikiGenerator.catValues(
-                    MediawikiGenerator.valueOptions( // values
-                        ref.position(),            // position
-                        property.optionProvider(), // optionProvider
-                        property.valueOptions(),   // valueOptions
-                        rootDoc                    // docErrorReporter
+                    property.optionProvider().valueOptions(), // valueOptions
+                    (                                         // defaultValue
+                        defaultValue == null
+                        ? new String[0]
+                        : new String[] { defaultValue.toString() }
                     ),
-                    defaultValue,                    // defaultValue
-                    " | "                            // glue
+                    " | "                                     // glue
                 ) + "\"";
                 break;
 
@@ -214,77 +208,16 @@ class MediawikiGenerator {
     }
 
     /**
-     * @return The value options for the given setter method
-     */
-    private static String[]
-    valueOptions(
-        SourcePosition         position,
-        @Nullable Class<?>     optionProvider,
-        @Nullable String[]     valueOptions,
-        final DocErrorReporter docErrorReporter
-    ) throws Longjump {
-
-        String[] result;
-        if (optionProvider == null) {
-            if (valueOptions == null) {
-                docErrorReporter.printError(position, "Both option provider and value options are missing");
-                throw new Longjump();
-            }
-            result = valueOptions;
-        } else
-        if (valueOptions != null) {
-            docErrorReporter.printError(position, "Option provider and value options are mutually exclusive");
-            throw new Longjump();
-        } else
-        {
-
-            if (optionProvider.getSuperclass() == Enum.class) {
-                Object[] tmp;
-                try {
-                    tmp = (Object[]) optionProvider.getDeclaredMethod("values").invoke(null);
-                } catch (Exception e) {
-                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                    throw new Longjump();
-                }
-                result = new String[tmp.length];
-                for (int i = 0; i < tmp.length; i++) {
-                    result[i] = ((Enum<?>) tmp[i]).name().toLowerCase();
-                }
-            } else
-            if (IOptionProvider.class.isAssignableFrom(optionProvider)) {
-                List<?> tmp;
-                try {
-                    tmp = (List<?>) optionProvider.getDeclaredMethod("getOptions").invoke(optionProvider.newInstance());
-                } catch (Exception e) {
-                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                    throw new Longjump();
-                }
-                result = tmp.toArray(new String[0]);
-            } else
-            {
-                docErrorReporter.printError(position, (
-                    ""
-                    + "Option provider class '"
-                    + optionProvider
-                    + "' must either extend 'Enum' or implement 'IOptionProvider'"
-                ));
-                throw new Longjump();
-            }
-        }
-        return result;
-    }
-
-    /**
      * Concatenate the given {@code values}, separated with {@code glue}, and underline the value which equals the
      * {@code defaultValue}.
      */
     private static String
-    catValues(String[] values, @Nullable Object defaultValue, String glue) {
+    catValues(ValueOption[] valueOptions, @Nullable Object[] defaultValues, String glue) {
 
-        return MediawikiGenerator.catValues(
-            values,
-            defaultValue == null ? new Object[0] : new Object[] { defaultValue }, glue
-        );
+        String[] values = new String[valueOptions.length];
+        for (int i = 0; i < valueOptions.length; i++) values[i] = valueOptions[i].name();
+
+        return MediawikiGenerator.catValues(values, defaultValues, glue);
     }
 
     /**

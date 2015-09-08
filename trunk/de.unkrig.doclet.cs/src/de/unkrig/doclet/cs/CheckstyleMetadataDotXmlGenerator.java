@@ -32,8 +32,10 @@ import java.util.Collection;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
+import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
+import de.unkrig.doclet.cs.CsDoclet.ValueOption;
 
 /**
  * Produces the 'checkstyle-metadata.xml' and 'checkstyle-metadata.properties' files for ECLIPSE-CS.
@@ -106,17 +108,17 @@ class CheckstyleMetadataDotXmlGenerator {
                     property.defaultValue(),
                     property.overrideDefaultValue()
                 );
-                Class<?> optionProvider = property.optionProvider();
+                OptionProvider optionProvider = property.optionProvider();
                 if (optionProvider != null) {
-                    pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.getName());
+                    pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className());
                 }
-                String[] valueOptions = property.valueOptions();
+                ValueOption[] valueOptions = property.optionProvider().valueOptions();
                 if (valueOptions != null) {
                     pw.printf("                <enumeration>%n");
-                    for (String valueOption : valueOptions) {
+                    for (ValueOption valueOption : valueOptions) {
                         pw.printf(
                             "                    <property-value-option value=\"%s\" />%n",
-                            valueOption
+                            valueOption.name()
                         );
                     }
                     pw.printf("                </enumeration>%n");

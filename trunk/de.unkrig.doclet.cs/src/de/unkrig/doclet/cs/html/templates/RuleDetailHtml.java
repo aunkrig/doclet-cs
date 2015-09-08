@@ -32,21 +32,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
-
-import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.RootDoc;
-import com.sun.javadoc.SourcePosition;
 
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
-import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
+import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
+import de.unkrig.doclet.cs.CsDoclet.ValueOption;
 import de.unkrig.notemplate.javadocish.IndexPages;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
@@ -99,62 +96,71 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 defaultValue = tmp;
             }
 
-            String nav = property.name() + " = ";
+            String detailTitle = property.name() + " = ";
 
             switch (property.datatype()) {
 
             case BOOLEAN:
-                nav += "\"" + RuleDetailHtml.catValues(
-                    new String[] { "true", "false" },                      // values
-                    defaultValue == null ? null : defaultValue.toString(), // defaultValue
-                    " | "                                                  // glue
-                ) + "\"";
+                detailTitle += (
+                    defaultValue == null ? "\"true|false" :
+                    Boolean.TRUE.equals(defaultValue) ? "\"<u>true</u>|false\"" :
+                    "\"true|<u>false</u>\""
+                );
                 break;
 
             case MULTI_CHECK:
-                try {
-                    nav += "\"" + RuleDetailHtml.catValues(
-                        RuleDetailHtml.valueOptions( // values
-                            property.ref().position(), // position
-                            property.optionProvider(), // optionProvider
-                            property.valueOptions(),   // valueOptions
-                            rootDoc                    // docErrorReporter
+                {
+                    OptionProvider op = property.optionProvider();
+                    if (op == null) {
+                        rootDoc.printError(property.ref().position(), "Multi-check property lacks the option provider");
+                        detailTitle += "???";
+                        break;
+                    }
+                    detailTitle += "\"" + RuleDetailHtml.catValues(
+                        op,  // optionProvider
+                        (    // defaultValues
+                            defaultValue == null
+                            ? new Object[0]
+                            : ((String) defaultValue).split(",")
                         ),
-                        (                            // defaultValues
-                            defaultValue == null ? new Object[0] : ((String) defaultValue).split(",")
-                        ),
-                        ", "                         // glue
+                        ", " // glue
                     ) + "\"";
-                } catch (Longjump l) {
-                    nav += "???";
                 }
                 break;
 
             case REGEX:
-                nav += (
-                    "\"''[http://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html#sum "
-                    + property.datatype()
-                    + "]''\""
+                detailTitle += (
+                    "<i>"
+                    + "<a href=\"http://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html\">"
+                    + "regular-expression"
+                    + "</a>"
+                    + "</i>"
                 );
                 if (defaultValue != null) {
-                    nav += " (optional; default value is \"" + defaultValue + "\")";
+                    detailTitle += " (optional; default value is \"" + defaultValue + "\")";
                 }
                 break;
 
             case SINGLE_SELECT:
-                try {
-                    nav += "\"" + RuleDetailHtml.catValues(
-                        RuleDetailHtml.valueOptions( // values
-                            property.ref().position(), // position
-                            property.optionProvider(), // optionProvider
-                            property.valueOptions(),   // valueOptions
-                            rootDoc                    // docErrorReporter
+                {
+                    OptionProvider op = property.optionProvider();
+                    if (op == null) {
+                        rootDoc.printError(
+                            property.ref().position(),
+                            "Single-select property lacks the option provider"
+                        );
+                        detailTitle += "???";
+                        break;
+                    }
+                    detailTitle += "\"" + RuleDetailHtml.catValues(
+                        op,    // optionProvider
+                        (      // defaultValue
+                            defaultValue == null
+                            ? new Object[0]
+                            : new Object[] { defaultValue }
                         ),
-                        defaultValue,                // defaultValue
-                        " | "                        // glue
+                        " | "  // glue
                     ) + "\"";
-                } catch (Longjump l) {
-                    nav += "???";
                 }
                 break;
 
@@ -163,21 +169,27 @@ class RuleDetailHtml extends AbstractDetailHtml {
             case HIDDEN:
             case INTEGER:
             case STRING:
-                nav += "\"<i>" + property.datatype() + "</i>\"";
+                detailTitle += "\"<i>" + property.datatype() + "</i>\"";
                 if (defaultValue == null) {
-                    nav += " (mandatory)";
+                    detailTitle += " (mandatory)";
                 } else {
-                    nav += " (optional; default value is " + defaultValue + ")";
+                    detailTitle += " (optional; default value is " + defaultValue + ")";
                 }
                 break;
+            }
+
+            String propertyLongDescription = property.longDescription();
+            if (property.optionProvider() != null) {
+                propertyLongDescription += "<p>Default values are <u>underlined</u>.</p>";
+                propertyLongDescription += "<p>For a description of the individual values, click them.</p>";
             }
 
             SectionItem propertyItem = new SectionItem();
 
             propertyItem.anchor            = property.name();
             propertyItem.summaryTableCells = new String[] { property.name(), property.shortDescription() };
-            propertyItem.detailTitle       = nav;
-            propertyItem.detailContent     = property.longDescription();
+            propertyItem.detailTitle       = detailTitle;
+            propertyItem.detailContent     = propertyLongDescription;
 
             propertyItems.add(propertyItem);
 
@@ -241,100 +253,108 @@ class RuleDetailHtml extends AbstractDetailHtml {
         );
     }
 
-    /**
-     * @return The value options for the given setter method
-     */
-    private static String[]
-    valueOptions(
-        SourcePosition         position,
-        @Nullable Class<?>     optionProvider,
-        @Nullable String[]     valueOptions,
-        final DocErrorReporter docErrorReporter
-    ) throws Longjump {
-
-        String[] result;
-        if (optionProvider == null) {
-            if (valueOptions == null) {
-                docErrorReporter.printError(position, "Both option provider and value options are missing");
-                throw new Longjump();
-            }
-            result = valueOptions;
-        } else
-        if (valueOptions != null) {
-            docErrorReporter.printError(position, "Option provider and value options are mutually exclusive");
-            throw new Longjump();
-        } else
-        {
-
-            if (optionProvider.getSuperclass() == Enum.class) {
-                Object[] tmp;
-                try {
-                    tmp = (Object[]) optionProvider.getDeclaredMethod("values").invoke(null);
-                } catch (Exception e) {
-                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                    throw new Longjump();
-                }
-                result = new String[tmp.length];
-                for (int i = 0; i < tmp.length; i++) {
-                    result[i] = ((Enum<?>) tmp[i]).name().toLowerCase();
-                }
-            } else
-            if (IOptionProvider.class.isAssignableFrom(optionProvider)) {
-                List<?> tmp;
-                try {
-                    tmp = (List<?>) optionProvider.getDeclaredMethod("getOptions").invoke(optionProvider.newInstance());
-                } catch (Exception e) {
-                    docErrorReporter.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                    throw new Longjump();
-                }
-                result = tmp.toArray(new String[0]);
-            } else
-            {
-                docErrorReporter.printError(position, (
-                    ""
-                    + "Option provider class '"
-                    + optionProvider
-                    + "' must either extend 'Enum' or implement 'IOptionProvider'"
-                ));
-                throw new Longjump();
-            }
-        }
-        return result;
-    }
+//    /**
+//     * @param optionProvider Either an enum type, or an implementation of {@link IOptionProvider}; mutually exclusive
+//     *                       with non-{@code null} <var>valueOptions</var>
+//     * @param valueOptions   The list of possible values; mutually exclusive with a non-{@code null}
+//     *                       <var>optionProvider</var>
+//     * @param html TODO
+//     * @return               The value options for the given setter method; may contain HTML markup
+//     */
+//    private static String[]
+//    valueOptions(
+//        SourcePosition     position,
+//        @Nullable ClassDoc optionProvider,
+//        @Nullable String[] valueOptions,
+//        final RootDoc      rootDoc,
+//        Html               html
+//    ) throws Longjump {
+//
+//        String[] result;
+//        if (optionProvider == null) {
+//            if (valueOptions == null) {
+//                rootDoc.printError(position, "Both option provider and value options are missing");
+//                throw new Longjump();
+//            }
+//            result = valueOptions;
+//        } else
+//        if (valueOptions != null) {
+//            rootDoc.printError(position, "Option provider and value options are mutually exclusive");
+//            throw new Longjump();
+//        } else
+//        if (optionProvider.isEnum()) {
+//
+//            // "optionProvider" is an ENUM type.
+//            List<String> tmp = new ArrayList<String>();
+//            for (FieldDoc fd : optionProvider.enumConstants()) {
+//                if (fd.isEnumConstant()) {
+//
+//                    String s = fd.name().toLowerCase();
+//
+//                    Tag[] inlineTags = fd.inlineTags();
+//                    if (inlineTags != null && inlineTags.length > 0) {
+//                        String htmlText = html.fromTags(inlineTags, rootDoc, rootDoc);
+//                        s = "<span title=\"" + NoTemplate.html(htmlText) + "\">" + s + "</span>";
+//                    }
+//                    tmp.add(s);
+//                }
+//            }
+//            result = tmp.toArray(new String[0]);
+//        } else
+//        if (optionProvider.subclassOf(
+//            Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider")
+//        )) {
+//
+//            // "optionProvider" extends "IOptionProvider".
+//            Class<?> opc = Types.loadType(position, optionProvider, rootDoc);
+//
+//            List<?> tmp;
+//            try {
+//                tmp = (List<?>) opc.getDeclaredMethod("getOptions").invoke(opc.newInstance());
+//            } catch (Exception e) {
+//                rootDoc.printError(position, e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
+//                throw new Longjump();
+//            }
+//            result = tmp.toArray(new String[0]);
+//        } else
+//        {
+//            rootDoc.printError(position, (
+//                ""
+//                + "Option provider class '"
+//                + optionProvider
+//                + "' must either extend 'Enum' or implement 'IOptionProvider'"
+//            ));
+//            throw new Longjump();
+//        }
+//
+//        return result;
+//    }
 
     /**
      * Concatenate the given {@code values}, separated with {@code glue}, and underline the value which equals the
      * {@code defaultValue}.
      */
     private static String
-    catValues(String[] values, @Nullable Object defaultValue, String glue) {
+    catValues(OptionProvider optionProvider, @Nullable Object[] defaultValues, String glue) {
 
-        return RuleDetailHtml.catValues(
-            values,
-            defaultValue == null ? new Object[0] : new Object[] { defaultValue }, glue
-        );
-    }
+        ValueOption[] valueOptions = optionProvider.valueOptions();
+        assert valueOptions.length >= 1;
 
-    /**
-     * Concatenate the given {@code values}, separated with {@code glue}, and underline the values which are also
-     * contained in {@code defaultValue}.
-     */
-    private static String
-    catValues(String[] values, Object[] defaultValues, String glue) {
-        assert values.length >= 1;
-
-        Set<Object>   dvs = new HashSet<Object>();
+        Set<Object> dvs = new HashSet<Object>();
         for (Object o : defaultValues) dvs.add(o.toString());
 
         StringBuilder sb  = new StringBuilder();
         for (int i = 0;;) {
-            String value = values[i];
-            if (dvs.contains(value)) {
-                sb.append("<u>" + value + "</u>");
+            ValueOption vo = valueOptions[i];
+            sb.append("<a href=\"../option-providers/").append(optionProvider.className()).append(".html#");
+            sb.append(vo.name()).append("_detail\">");
+            if (dvs.contains(vo.name())) {
+                sb.append("<u>").append(vo.name()).append("</u>");
             } else {
-                sb.append(value);
+                sb.append(vo.name());
             }
-            if (++i == values.length) break;
+            sb.append("</a>");
+            if (++i == valueOptions.length) break;
             sb.append(glue);
         }
         return sb.toString();

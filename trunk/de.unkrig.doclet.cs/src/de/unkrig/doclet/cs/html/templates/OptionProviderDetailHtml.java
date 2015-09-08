@@ -26,7 +26,9 @@
 
 package de.unkrig.doclet.cs.html.templates;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import com.sun.javadoc.RootDoc;
 
@@ -34,72 +36,92 @@ import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
-import de.unkrig.doclet.cs.CsDoclet.Quickfix;
+import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
+import de.unkrig.doclet.cs.CsDoclet.ValueOption;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractDetailHtml;
 import de.unkrig.notemplate.javadocish.templates.AbstractRightFrameHtml;
 
 /**
- * Renderer for the "per-rule" documentation document.
+ * Renderer for the "per-option provider" documentation document.
  */
 public
-class QuickfixDetailHtml extends AbstractDetailHtml {
+class OptionProviderDetailHtml extends AbstractDetailHtml {
 
     static { AssertionUtil.enableAssertionsForThisClass(); }
 
     /**
-     * Renderer for the "per-quickfix" documentation document.
+     * Renderer for the "per-option provider" documentation document.
      */
     public void
     render(
-        final ElementWithContext<Quickfix> quickfixTriplet,
-        final Html                         html,
-        final RootDoc                      rootDoc,
-        Options                            options,
-        String                             indexLink,
-        Consumer<? super IndexEntry>       indexEntries
+        final ElementWithContext<OptionProvider> optionProviderTriplet,
+        final Html                               html,
+        final RootDoc                            rootDoc,
+        Options                                  options,
+        String                                   indexLink,
+        Consumer<? super IndexEntry>             indexEntries
     ) {
 
-        Quickfix previousQuickfix = quickfixTriplet.previous();
-        Quickfix quickfix         = quickfixTriplet.current();
-        Quickfix nextQuickfix     = quickfixTriplet.next();
+        OptionProvider previousOptionProvider = optionProviderTriplet.previous();
+        OptionProvider optionProvider         = optionProviderTriplet.current();
+        OptionProvider nextOptionProvider     = optionProviderTriplet.next();
+
+        List<SectionItem> constantItems = new ArrayList<AbstractDetailHtml.SectionItem>();
+        for (ValueOption vo : optionProvider.valueOptions()) {
+
+            SectionItem item = new SectionItem();
+            item.anchor            = vo.name();
+            item.summaryTableCells = new String[] { vo.name(), vo.shortDescription() };
+            item.detailTitle       = "Value Option \"" + vo.name() + "\"";
+            item.detailContent     = vo.longDescription();
+
+            constantItems.add(item);
+        }
+
+        AbstractDetailHtml.Section constantsSection = new Section();
+        constantsSection.anchor               = "constants";
+        constantsSection.navigationLinkLabel  = "Constants";
+        constantsSection.summaryTitle1        = "Constant Summary";
+        constantsSection.summaryTitle2        = "Constants";
+        constantsSection.summaryTableHeadings = new String[] { "Name", "Description" };
+        constantsSection.detailTitle          = "Constant Detail";
+        constantsSection.items                = constantItems;
 
         super.rDetail(
-            "Quickfix " + quickfix.label(),                             // windowTitle
+            "Option Provider " + optionProvider.name(),                 // windowTitle
             options,                                                    // options
             new String[] { "../stylesheet.css", "../stylesheet2.css" }, // stylesheetLinks
             new String[] {                                              // nav1
-                "Overview",   "../overview-summary.html",
-                "QUickfix",   AbstractRightFrameHtml.HIGHLIT,
-                "Deprecated", "../deprecated-list.html",
-                "Index",      indexLink,
-                "Help",       "../help-doc.html",
+                "Overview",        "../overview-summary.html",
+                "Option Provider", AbstractRightFrameHtml.HIGHLIT,
+                "Deprecated",      "../deprecated-list.html",
+                "Index",           indexLink,
+                "Help",            "../help-doc.html",
             },
             new String[] {                                              // nav2
-                previousQuickfix == null ? "Prev Quickfix" : "<a href=\"\">Prev Quickfix</a>",
-                nextQuickfix     == null ? "Next Quickfix" : "<a href=\"\">Next Quickfix</a>",
+                previousOptionProvider == null ? "Prev Option Provider" : "<a href=\"\">Prev Option Provider</a>",
+                nextOptionProvider     == null ? "Next Option Provider" : "<a href=\"\">Next Option Provider</a>",
             },
             new String[] {                                              // nav3
-                "Frames",    "../index.html?quickfixes/" + quickfix.label() + ".html",
+                "Frames",    "../index.html?option-providers/" + optionProvider.className() + ".html",
                 "No Frames", "#top",
             },
             new String[] {                                              // nav4
                 "All Rules", "../allrules-noframe.html",
             },
             null,                                                       // subtitle
-            "Quickfix \"" + quickfix.label() + "\"",                    // title
+            "Option Provider \"" + optionProvider.name() + "\"",        // title
             () -> {                                                     // prolog
-                QuickfixDetailHtml.this.l(
-"  <div class=\"description\">"
-                );
-                this.l(quickfix.longDescription());
-                QuickfixDetailHtml.this.l(
+                OptionProviderDetailHtml.this.l(
+"  <div class=\"description\">",
+"    " + optionProvider.longDescription(),
 "  </div>",
 "</div>"
                 );
             },
-            Collections.emptyList()                                     // sections
+            Collections.singletonList(constantsSection)                 // sections
         );
     }
 }
