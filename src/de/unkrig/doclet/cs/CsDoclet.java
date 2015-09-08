@@ -33,14 +33,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -50,6 +43,7 @@ import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
 import de.unkrig.commons.doclet.Docs;
+import de.unkrig.commons.doclet.Tags;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.doclet.html.Html.LinkMaker;
@@ -74,6 +68,7 @@ import de.unkrig.csdoclet.annotation.StringRuleProperty;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty.Datatype;
 import de.unkrig.doclet.cs.html.templates.AllRulesFrameHtml;
 import de.unkrig.doclet.cs.html.templates.IndexHtml;
+import de.unkrig.doclet.cs.html.templates.OptionProviderDetailHtml;
 import de.unkrig.doclet.cs.html.templates.OverviewSummaryHtml;
 import de.unkrig.doclet.cs.html.templates.QuickfixDetailHtml;
 import de.unkrig.doclet.cs.html.templates.RuleDetailHtml;
@@ -282,8 +277,14 @@ class CsDoclet {
         }));
 
         // Process all specified packages.
-        Collection<Rule>     allRules      = new ArrayList<Rule>();
-        Collection<Quickfix> allQuickfixes = new ArrayList<Quickfix>();
+        Collection<Rule>     allRules           = new ArrayList<Rule>();
+        Collection<Quickfix> allQuickfixes      = new ArrayList<Quickfix>();
+        Set<OptionProvider>  allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
+
+            @Override public int
+            compare(OptionProvider op1, OptionProvider op2) { return op1.className().compareTo(op2.className()); }
+        });
+
         for (PackageDoc pd : rootDoc.specifiedPackages()) {
             String checkstylePackage = pd.name();
 
@@ -298,7 +299,12 @@ class CsDoclet {
             }
 
             try {
-                final Collection<Rule> rulesInPackage = CsDoclet.rules(classDocs.values(), rootDoc, html);
+                final Collection<Rule> rulesInPackage = CsDoclet.rules(
+                    classDocs.values(),
+                    rootDoc,
+                    ConsumerUtil.addToCollection(allOptionProviders),
+                    html
+                );
 
                 if (!rulesInPackage.isEmpty()) {
 
@@ -378,7 +384,7 @@ class CsDoclet {
 
         // Generate HTML (JAVADOCish) documentation.
         if (generateHtml) {
-            CsDoclet.generateHtml(allRules, allQuickfixes, options, indexStyle, rootDoc, html);
+            CsDoclet.generateHtml(allRules, allQuickfixes, allOptionProviders, options, indexStyle, rootDoc, html);
         }
 
         return true;
@@ -386,15 +392,17 @@ class CsDoclet {
 
     /**
      * Generates all HTML documents, including the static ones ("stylesheet.css", for example).
+     * @param allOptionProviders TODO
      */
     private static void
     generateHtml(
-        Collection<Rule>     allRules,
-        Collection<Quickfix> allQuickfixes,
-        Options              options,
-        IndexStyle           indexStyle,
-        RootDoc              rootDoc,
-        Html                 html
+        Collection<Rule>           allRules,
+        Collection<Quickfix>       allQuickfixes,
+        Collection<OptionProvider> allOptionProviders,
+        Options                    options,
+        IndexStyle                 indexStyle,
+        RootDoc                    rootDoc,
+        Html                       html
     ) throws IOException {
 
         // Create "stylesheet.css".
@@ -449,6 +457,21 @@ class CsDoclet {
                 ),
                 quickfixHtml -> {         // renderer
                     quickfixHtml.render(quickfix, html, rootDoc, options, indexLink, indexEntryConsumer);
+                }
+            );
+        }
+
+        // Generate documentation for option providers.
+        for (ElementWithContext<OptionProvider> optionProvider : IterableUtil.iterableWithContext(allOptionProviders)) {
+
+            NoTemplate.render(
+                OptionProviderDetailHtml.class, // templateClass
+                new File(                       // outputFile
+                    options.destination,
+                    "option-providers/" + optionProvider.current().className() + ".html"
+                ),
+                optionProviderHtml -> {               // renderer
+                    optionProviderHtml.render(optionProvider, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
         }
@@ -669,9 +692,16 @@ class CsDoclet {
 
     /**
      * Derives a collection of CheckStyle rules from the given {@code classDocs}.
+     *
+     * @param usedOptionProviders Gets the option providers used by the rules
      */
     public static Collection<Rule>
-    rules(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
+    rules(
+        final Collection<ClassDoc>       classDocs,
+        RootDoc                          rootDoc,
+        Consumer<? super OptionProvider> usedOptionProviders,
+        Html                             html
+    ) throws Longjump {
 
         ClassDoc checkClass  = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
         ClassDoc filterClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
@@ -698,7 +728,7 @@ class CsDoclet {
 
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, html));
+                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, usedOptionProviders, html));
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -765,15 +795,17 @@ class CsDoclet {
 
     /**
      * Parses a CheckStyle rule.
+     * @param usedOptionProviders
      */
     private static Rule
     rule(
         AnnotationDesc ruleAnnotation,
-        final ClassDoc classDoc,
-        RootDoc        rootDoc,
-        final String   familySingular,
-        String         familyPlural,
-        Html           html
+        final ClassDoc                   classDoc,
+        RootDoc                          rootDoc,
+        final String                     familySingular,
+        String                           familyPlural,
+        Consumer<? super OptionProvider> usedOptionProviders,
+        Html                             html
     ) throws Longjump {
 
         // CHECKSTYLE LineLength:OFF
@@ -794,7 +826,7 @@ class CsDoclet {
         assert name      != null;
         assert parent    != null;
 
-        final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc, html);
+        final Collection<RuleProperty> properties = CsDoclet.properties(classDoc, rootDoc, html, usedOptionProviders);
 
         final SortedMap<String, String> messages = new TreeMap<String, String>();
         for (ClassDoc cd = classDoc; cd != null; cd = cd.superclass()) {
@@ -894,11 +926,8 @@ class CsDoclet {
          */
         Datatype datatype();
 
-        /** @return The {@link IOptionProvider} for this property */
-        @Nullable Class<?> optionProvider();
-
-        /** @return The 'value options' list of this property */
-        @Nullable String[] valueOptions();
+        /** @return The option provider for this property */
+        @Nullable OptionProvider optionProvider();
 
         /** @return The default value for this property */
         @Nullable Object defaultValue();
@@ -929,12 +958,58 @@ class CsDoclet {
         String longDescription();
     }
 
+    /** Representation of an "option provider". */
+    public
+    interface OptionProvider {
+
+        /** @return The value of the "{@code cs-name}" tag, or the qualified class name */
+        @Nullable String name();
+
+        /** @return The qualified class name, or {@code null} if this property has only {@code valueOptions=...} */
+        @Nullable String className();
+
+        /**
+         * @return The one-sentence description
+         * @throws Longjump
+         */
+        String shortDescription();
+
+        /**
+         * @return The verbose description
+         * @throws Longjump
+         */
+        String longDescription();
+
+        /**
+         * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@link IOptionProvider}, or by
+         *         {@code valueOptions=...}
+         */
+        ValueOption[] valueOptions();
+    }
+
+    public
+    interface ValueOption {
+
+        /** @return The value of value option */
+        String name();
+
+        /** @return The one-sentence description */
+        @Nullable String shortDescription();
+
+        /** @return The verbose description */
+        @Nullable String longDescription();
+    }
+
     /**
      * Invokes {@link RulePropertyHandler#handeRuleProperty(String, SourcePosition, String, String, String, String,
-     * Class, AnnotationValue[], Object, Object)} for each property of the rule designated by {@code classDoc}
+     * Class, AnnotationValue[], Object, Object)} for each property of the rule designated by {@code classDoc}.
+     *
+     * @param usedOptionProviders Consumers any option provider (ENUM type or {@link IOptionProvider} needed by the
+     *                            properties
      */
     public static Collection<RuleProperty>
-    properties(ClassDoc classDoc, RootDoc rootDoc, Html html) throws Longjump {
+    properties(ClassDoc classDoc, RootDoc rootDoc, Html html, Consumer<? super OptionProvider> usedOptionProviders)
+    throws Longjump {
 
         List<RuleProperty> properties = new ArrayList<RuleProperty>();
         for (final MethodDoc methodDoc : classDoc.methods(false)) {
@@ -953,74 +1028,195 @@ class CsDoclet {
 
             if (rpa == null) continue;
 
-            // Determine the datatype.
-            final Datatype datatype;
-            {
-                String atsn = rpa.annotationType().simpleTypeName();
-                int    idx  = atsn.indexOf("RuleProperty");
-
-                assert idx != -1 : atsn;
-                datatype = Datatype.valueOf(CamelCase.toUpperCaseUnderscoreSeparated(atsn.substring(0, idx)));
-            }
-
-            // Determine the property name.
-            final String propertyName;
-            {
-                String n = Annotations.getElementValue(rpa, "name", String.class);
-                if (n == null) {
-                    String methodName = methodDoc.name();
-                    if (!CsDoclet.SETTER.matcher(methodName).matches()) {
-                        rootDoc.printError(pos, "Cannot determine property name");
-                        continue;
-                    }
-                    n = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
-                }
-                propertyName = n;
-            }
-
-            // Determine short and long description.
-            final String shortDescription = html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
-            final String longDescription  = html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
-
-            // Determine the (optional) option provider.
-            final Class<?> optionProvider;
-            {
-                final Type t = Annotations.getElementValue(rpa, "optionProvider", Type.class);
-                optionProvider = t == null ? null : Types.loadType(pos, t, rootDoc);
-            }
-
-            // Determine the (optional) value options.
-            final String[] valueOptions = Annotations.getElementValue(rpa, "valueOptions", String[].class);
-
-            if (optionProvider != null && valueOptions != null) {
-                rootDoc.printError(
-                    pos,
-                    "@cs-property-option-provider and @cs-property-value-option are mutually exclusive"
-                );
-                continue;
-            }
-
-            // Determine the default values.
-            final Object
-            defaultValue = Annotations.getElementValue(rpa, "defaultValue", String.class);
-            final String
-            overrideDefaultValue = Annotations.getElementValue(rpa, "overrideDefaultValue", String.class);
-
-            properties.add(new RuleProperty() {
-
-                @Override public Doc                ref()                  { return methodDoc;            }
-                @Override public String             name()                 { return propertyName;         }
-                @Override public String             shortDescription()     { return shortDescription;     }
-                @Override public String             longDescription()      { return longDescription;      }
-                @Override public Datatype           datatype()             { return datatype;             }
-                @Override @Nullable public Class<?> optionProvider()       { return optionProvider;       }
-                @Override @Nullable public String[] valueOptions()         { return valueOptions;         }
-                @Override @Nullable public Object   defaultValue()         { return defaultValue;         }
-                @Override @Nullable public Object   overrideDefaultValue() { return overrideDefaultValue; }
-            });
+            try {
+                properties.add(CsDoclet.property(methodDoc, rpa, rootDoc, usedOptionProviders, html));
+            } catch (Longjump l) {}
         }
 
         return properties;
+    }
+
+    /**
+     * @param usedOptionProvider Gets the option provider used by the property (if any)
+     */
+    private static RuleProperty
+    property(
+        MethodDoc                        methodDoc,
+        AnnotationDesc                   rpa,
+        RootDoc                          rootDoc,
+        Consumer<? super OptionProvider> usedOptionProvider,
+        Html                             html
+    ) throws Longjump {
+
+        // Determine the datatype.
+        final Datatype datatype;
+        {
+            String atsn = rpa.annotationType().simpleTypeName();
+            int    idx  = atsn.indexOf("RuleProperty");
+
+            assert idx != -1 : atsn;
+            datatype = Datatype.valueOf(CamelCase.toUpperCaseUnderscoreSeparated(atsn.substring(0, idx)));
+        }
+
+        // Determine the property name.
+        final String propertyName;
+        {
+            String n = Annotations.getElementValue(rpa, "name", String.class);
+            if (n == null) {
+                String methodName = methodDoc.name();
+                if (!CsDoclet.SETTER.matcher(methodName).matches()) {
+                    rootDoc.printError(methodDoc.position(), "Cannot determine property name");
+                    throw new Longjump();
+                }
+                n = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+            }
+            propertyName = n;
+        }
+
+        // Determine short and long description.
+        final String ruleShortDescription = html.fromTags(methodDoc.firstSentenceTags(), methodDoc, rootDoc);
+        final String ruleLongDescription  = html.fromTags(methodDoc.inlineTags(),        methodDoc, rootDoc);
+
+        // Determine the (optional) option provider.
+        final OptionProvider optionProvider;
+        {
+
+            // Get the "optionProvider=..." element-value pair.
+            ClassDoc opc;
+            {
+                Type tmp = Annotations.getElementValue(rpa, "optionProvider", Type.class);
+                opc = tmp == null ? null : tmp.asClassDoc();
+            }
+
+            // Get the "valueOptions=..." element-value pair.
+            String[] valueOptions = Annotations.getElementValue(rpa, "valueOptions", String[].class);
+
+            if (opc == null) {
+                if (valueOptions == null) {
+                    optionProvider = null;
+                } else {
+                    List<ValueOption> tmp = new ArrayList<CsDoclet.ValueOption>();
+                    for (String ev : valueOptions) {
+                        tmp.add(new ValueOption() {
+                            @Override public String           name()             { return ev; }
+                            @Override @Nullable public String shortDescription() { return null; }
+                            @Override @Nullable public String longDescription()  { return null; }
+                        });
+                    }
+                    final ValueOption[] valueOptions2 = tmp.toArray(new ValueOption[tmp.size()]);
+                    optionProvider = new OptionProvider() {
+                        @Override @Nullable public String name()             { return null; }
+                        @Override @Nullable public String className()        { return null; }
+                        @Override public ValueOption[]    valueOptions()     { return valueOptions2; }
+                        @Override public String           shortDescription() { return null; }
+                        @Override public String           longDescription()  { return null; }
+                    };
+                }
+            } else {
+                final String optionProviderShortDescription = html.fromTags(opc.firstSentenceTags(), opc, rootDoc);
+                final String optionProviderLongDescription  = html.fromTags(opc.inlineTags(),        opc, rootDoc);
+                ValueOption[] valueOptions2;
+                if (opc.isEnum()) {
+
+                    // Property is an ENUM.
+                    List<ValueOption> tmp2 = new ArrayList<ValueOption>();
+                    for (FieldDoc fd : opc.enumConstants()) {
+
+                        String s = fd.name().toLowerCase();
+
+                        String valueOptionShortDescription = html.fromTags(fd.firstSentenceTags(), rootDoc, rootDoc);
+                        String valueOptionLongDescription  = html.fromTags(fd.inlineTags(),        rootDoc, rootDoc);
+                        tmp2.add(new ValueOption() {
+
+                            @Override public String
+                            name() { return fd.name().toLowerCase(); }
+
+                            @Override public String
+                            shortDescription() { return valueOptionShortDescription; }
+
+                            @Override public String
+                            longDescription() { return valueOptionLongDescription; }
+                        });
+                    }
+                    valueOptions2 = tmp2.toArray(new ValueOption[0]);
+                } else
+                if (opc.subclassOf(Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider"))) {
+
+                    // Property
+                    Class<?> opc2 = Types.loadType(methodDoc.position(), opc, rootDoc);
+
+                    List<String> tmp2;
+                    try {
+                        tmp2 = (List<String>) opc2.getDeclaredMethod("getOptions").invoke(opc2.newInstance());
+                    } catch (Exception e) {
+                        rootDoc.printError(methodDoc.position(), e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
+                        throw new Longjump();
+                    }
+                    List<ValueOption> tmp3 = new ArrayList<CsDoclet.ValueOption>();
+                    for (final String von : tmp2) {
+                        tmp3.add(new ValueOption() {
+
+                            @Override public String
+                            name() { return von; }
+
+                            @Override public String
+                            shortDescription() { return null; }
+
+                            @Override public String
+                            longDescription() { return null; }
+                        });
+                    }
+                    valueOptions2 = tmp3.toArray(new ValueOption[0]);
+                } else
+                {
+                    rootDoc.printError(methodDoc.position(), (
+                        ""
+                        + "Option provider class '"
+                        + opc
+                        + "' must either extend 'Enum' or implement 'IOptionProvider'"
+                    ));
+                    throw new Longjump();
+                }
+
+                optionProvider = new OptionProvider() {
+
+                    @Override public String
+                    name() { return Tags.optionalTag(opc, "@cs-name", opc.qualifiedName(), rootDoc); }
+
+                    @Override public String
+                    className() { return opc.qualifiedName(); }
+
+                    @Override public String
+                    shortDescription() { return optionProviderShortDescription; }
+
+                    @Override public String
+                    longDescription() { return optionProviderLongDescription; }
+
+                    @Override @Nullable public ValueOption[]
+                    valueOptions() { return valueOptions2; }
+                };
+
+                usedOptionProvider.consume(optionProvider);
+            }
+        }
+
+        // Determine the default values.
+        final Object
+        defaultValue = Annotations.getElementValue(rpa, "defaultValue", String.class);
+        final String
+        overrideDefaultValue = Annotations.getElementValue(rpa, "overrideDefaultValue", String.class);
+
+        return new RuleProperty() {
+
+            @Override public Doc                      ref()                  { return methodDoc;            }
+            @Override public String                   name()                 { return propertyName;         }
+            @Override public String                   shortDescription()     { return ruleShortDescription; }
+            @Override public String                   longDescription()      { return ruleLongDescription;  }
+            @Override public Datatype                 datatype()             { return datatype;             }
+            @Override @Nullable public OptionProvider optionProvider()       { return optionProvider;       }
+            @Override @Nullable public Object         defaultValue()         { return defaultValue;         }
+            @Override @Nullable public Object         overrideDefaultValue() { return overrideDefaultValue; }
+        };
     }
 
     @Nullable private static AnnotationDesc
