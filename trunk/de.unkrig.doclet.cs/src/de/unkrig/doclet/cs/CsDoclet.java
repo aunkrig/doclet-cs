@@ -136,7 +136,6 @@ class CsDoclet {
         if ("-checkstyle-metadata.properties-dir".equals(option)) return 2;
         if ("-checkstyle-metadata.xml-dir".equals(option))        return 2;
         if ("-messages.properties-dir".equals(option))            return 2;
-        if ("-mediawiki-dir".equals(option))                      return 2;
         if ("-link".equals(option))                               return 2;
         if ("-linkoffline".equals(option))                        return 3;
         if ("-splitindex".equals(option))                         return 1;
@@ -163,7 +162,6 @@ class CsDoclet {
         File    checkstyleMetadataDotPropertiesDir = null;
         File    checkstyleMetadataDotXmlDir        = null;
         File    messagesDotPropertiesDir           = null;
-        File    mediawikiDir                       = null;
 
         final Map<String /*packageName*/, URL /*target*/> externalJavadocs = new HashMap<String, URL>();
 
@@ -208,9 +206,6 @@ class CsDoclet {
             if ("-messages.properties-dir".equals(option[0])) {
                 messagesDotPropertiesDir = new File(option[1]);
             } else
-            if ("-mediawiki-dir".equals(option[0])) {
-                mediawikiDir = new File(option[1]);
-            } else
             if ("-link".equals(option[0])) {
                 URL targetUrl = new URL(option[1] + '/');
                 Docs.readExternalJavadocs(targetUrl, targetUrl, externalJavadocs, rootDoc);
@@ -240,11 +235,10 @@ class CsDoclet {
             && checkstyleMetadataDotPropertiesDir == null
             && checkstyleMetadataDotXmlDir == null
             && messagesDotPropertiesDir == null
-            && mediawikiDir == null
         ) {
             rootDoc.printWarning(
-                "None of \"-d\", \"-checkstyle-metadata.properties-dir\", \"-checkstyle-metadata.xml-dir\", "
-                + "\"-messages.properties-dir\" and \"-mediawiki-dir\" specified - nothing to be done."
+                "None of \"-d\", \"-checkstyle-metadata.properties-dir\", \"-checkstyle-metadata.xml-dir\" and "
+                + "\"-messages.properties-dir\" specified - nothing to be done."
             );
         }
 
@@ -352,25 +346,6 @@ class CsDoclet {
                                 MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
                             }
                         );
-                    }
-
-                    // Generate MediaWiki markup documents for each rule in the package.
-                    if (mediawikiDir != null) {
-
-                        for (final Rule rule : rulesInPackage) {
-                            try {
-                                CsDoclet.printToFile(
-                                    new File(
-                                        new File(mediawikiDir, rule.familyPlural()),
-                                        rule.name().replaceAll(":\\s+", " ") + ".mediawiki"
-                                    ),
-                                    Charset.forName("ISO-8859-1"),
-                                    pw -> {
-                                        MediawikiGenerator.generate(rule, pw, rootDoc);
-                                    }
-                                );
-                            } catch (Longjump l) {}
-                        }
                     }
                 }
             } catch (Longjump l) {}
@@ -728,7 +703,9 @@ class CsDoclet {
 
             try {
 
-                rules.add(CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, usedOptionProviders, html));
+                rules.add(
+                    CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, usedOptionProviders, html)
+                );
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
             }
@@ -799,7 +776,7 @@ class CsDoclet {
      */
     private static Rule
     rule(
-        AnnotationDesc ruleAnnotation,
+        AnnotationDesc                   ruleAnnotation,
         final ClassDoc                   classDoc,
         RootDoc                          rootDoc,
         final String                     familySingular,
@@ -987,6 +964,9 @@ class CsDoclet {
         ValueOption[] valueOptions();
     }
 
+    /**
+     * Representation of a "value option", i.e. one value that an enumerator may have.
+     */
     public
     interface ValueOption {
 
@@ -1113,16 +1093,14 @@ class CsDoclet {
                     };
                 }
             } else {
-                final String optionProviderShortDescription = html.fromTags(opc.firstSentenceTags(), opc, rootDoc);
-                final String optionProviderLongDescription  = html.fromTags(opc.inlineTags(),        opc, rootDoc);
+                final String  optionProviderShortDescription = html.fromTags(opc.firstSentenceTags(), opc, rootDoc);
+                final String  optionProviderLongDescription  = html.fromTags(opc.inlineTags(),        opc, rootDoc);
                 ValueOption[] valueOptions2;
                 if (opc.isEnum()) {
 
                     // Property is an ENUM.
                     List<ValueOption> tmp2 = new ArrayList<ValueOption>();
                     for (FieldDoc fd : opc.enumConstants()) {
-
-                        String s = fd.name().toLowerCase();
 
                         String valueOptionShortDescription = html.fromTags(fd.firstSentenceTags(), rootDoc, rootDoc);
                         String valueOptionLongDescription  = html.fromTags(fd.inlineTags(),        rootDoc, rootDoc);
@@ -1149,8 +1127,8 @@ class CsDoclet {
                     try {
                         tmp2 = (List<String>) opc2.getDeclaredMethod("getOptions").invoke(opc2.newInstance());
                     } catch (Exception e) {
-                        rootDoc.printError(methodDoc.position(), e.getMessage()); // SUPPRESS CHECKSTYLE AvoidHidingCause
-                        throw new Longjump();
+                        rootDoc.printError(methodDoc.position(), e.getMessage());
+                        throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
                     }
                     List<ValueOption> tmp3 = new ArrayList<CsDoclet.ValueOption>();
                     for (final String von : tmp2) {
