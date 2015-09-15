@@ -216,6 +216,29 @@ class RuleDetailHtml extends AbstractDetailHtml {
         propertiesSection.items                = propertyItems;
 
         String familyCap = StringUtil.firstLetterToUpperCase(rule.familySingular());
+
+        String previousRuleLink = "Prev " + familyCap;
+        if (previousRule != null) {
+            previousRuleLink = (
+                "<a href=\""
+                + previousRule.simpleName()
+                + ".html\"><span class=\"typeNameLink\">"
+                + previousRuleLink
+                + "</span></a>"
+            );
+        }
+
+        String nextRuleLink = "Next " + familyCap;
+        if (nextRule != null) {
+            nextRuleLink = (
+                "<a href=\""
+                + nextRule.simpleName()
+                + ".html\"><span class=\"typeNameLink\">"
+                + nextRuleLink
+                + "</span></a>"
+            );
+        }
+
         super.rDetail(
             familyCap + " \"" + rule.name() + "\"",                     // windowTitle
             options,                                                    // options
@@ -227,10 +250,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 "Index",      "../" + indexLink,
                 "Help",       "../help-doc.html",
             },
-            new String[] {                                                // nav2
-                previousRule == null ? "Prev " + familyCap : "<a href=\"" + previousRule.simpleName() + ".html\"><span class=\"typeNameLink\">Prev " + familyCap + "</span></a>",
-                nextRule     == null ? "Next " + familyCap : "<a href=\"" +     nextRule.simpleName() + ".html\"><span class=\"typeNameLink\">Next " + familyCap + "</span></a>",
-            },
+            new String[] { previousRuleLink, nextRuleLink, },             // nav2
             new String[] {                                                // nav3
                 "Frames",    "../index.html?" + rule.familyPlural() + "/" + rule.simpleName() + ".html",
                 "No Frames", "#top",

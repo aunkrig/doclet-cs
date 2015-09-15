@@ -64,9 +64,9 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
         Consumer<? super IndexEntry>             indexEntries
     ) {
 
-        OptionProvider previousOptionProvider = optionProviderTriplet.previous();
-        OptionProvider optionProvider         = optionProviderTriplet.current();
-        OptionProvider nextOptionProvider     = optionProviderTriplet.next();
+        final OptionProvider previousOptionProvider = optionProviderTriplet.previous();
+        final OptionProvider optionProvider         = optionProviderTriplet.current();
+        final OptionProvider nextOptionProvider     = optionProviderTriplet.next();
 
         List<SectionItem> constantItems = new ArrayList<AbstractDetailHtml.SectionItem>();
         for (ValueOption vo : optionProvider.valueOptions()) {
