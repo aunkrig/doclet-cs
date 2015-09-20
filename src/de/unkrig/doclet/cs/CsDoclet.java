@@ -275,7 +275,7 @@ class CsDoclet {
         Collection<Quickfix> allQuickfixes      = new ArrayList<Quickfix>();
         Set<OptionProvider>  allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
 
-            @Override public int
+            @SuppressWarnings("null") @Override public int
             compare(OptionProvider op1, OptionProvider op2) { return op1.className().compareTo(op2.className()); }
         });
 
