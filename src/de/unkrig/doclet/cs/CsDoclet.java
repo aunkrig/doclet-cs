@@ -37,8 +37,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.sf.eclipsecs.core.config.meta.IOptionProvider;
-
 import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
@@ -275,7 +273,7 @@ class CsDoclet {
         Collection<Quickfix> allQuickfixes      = new ArrayList<Quickfix>();
         Set<OptionProvider>  allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
 
-            @SuppressWarnings("null") @Override public int
+            @Override public int
             compare(OptionProvider op1, OptionProvider op2) { return op1.className().compareTo(op2.className()); }
         });
 
@@ -958,8 +956,8 @@ class CsDoclet {
         String longDescription();
 
         /**
-         * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@link IOptionProvider}, or by
-         *         {@code valueOptions=...}
+         * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@link
+         *         net.sf.eclipsecs.core.config.meta.IOptionProvider}, or by {@code valueOptions=...}
          */
         ValueOption[] valueOptions();
     }
@@ -984,8 +982,8 @@ class CsDoclet {
      * Invokes {@link RulePropertyHandler#handeRuleProperty(String, SourcePosition, String, String, String, String,
      * Class, AnnotationValue[], Object, Object)} for each property of the rule designated by {@code classDoc}.
      *
-     * @param usedOptionProviders Consumers any option provider (ENUM type or {@link IOptionProvider} needed by the
-     *                            properties
+     * @param usedOptionProviders Consumers any option provider (ENUM type or {@link
+     *                            net.sf.eclipsecs.core.config.meta.IOptionProvider} needed by the properties
      */
     public static Collection<RuleProperty>
     properties(ClassDoc classDoc, RootDoc rootDoc, Html html, Consumer<? super OptionProvider> usedOptionProviders)
@@ -1125,7 +1123,9 @@ class CsDoclet {
 
                     List<String> tmp2;
                     try {
-                        tmp2 = (List<String>) opc2.getDeclaredMethod("getOptions").invoke(opc2.newInstance());
+                        @SuppressWarnings("unchecked") List<String>
+                        tmp3 = (List<String>) opc2.getDeclaredMethod("getOptions").invoke(opc2.newInstance());
+                        tmp2 = tmp3;
                     } catch (Exception e) {
                         rootDoc.printError(methodDoc.position(), e.getMessage());
                         throw new Longjump(); // SUPPRESS CHECKSTYLE AvoidHidingCause
@@ -1151,7 +1151,8 @@ class CsDoclet {
                         ""
                         + "Option provider class '"
                         + opc
-                        + "' must either extend 'Enum' or implement 'IOptionProvider'"
+                        + "' must either extend 'Enum' or implement "
+                        + "\"net.sf.eclipsecs.core.config.meta.IOptionProvider\""
                     ));
                     throw new Longjump();
                 }
