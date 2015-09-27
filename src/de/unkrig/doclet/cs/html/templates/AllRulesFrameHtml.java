@@ -38,6 +38,7 @@ import com.sun.javadoc.RootDoc;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Longjump;
+import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.notemplate.javadocish.Options;
@@ -77,7 +78,13 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
                     Collection<Rule> rulesOfFamily = rulesByFamily.get(rule.familyPlural());
                     if (rulesOfFamily == null) {
                         rulesOfFamily = new TreeSet<Rule>(new Comparator<Rule>() {
-                            @Override public int compare(Rule r1, Rule r2) { return r1.name().compareTo(r2.name()); }
+
+                            @Override public int
+                            compare(@Nullable Rule r1, @Nullable Rule r2) {
+                                assert r1 != null;
+                                assert r2 != null;
+                                return r1.name().compareTo(r2.name());
+                            }
                         });
                         rulesByFamily.put(rule.familyPlural(), rulesOfFamily);
                     }

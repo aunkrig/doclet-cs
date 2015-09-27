@@ -111,9 +111,7 @@ class CheckstyleMetadataDotXmlGenerator {
                 OptionProvider optionProvider = property.optionProvider();
                 if (optionProvider != null) {
                     pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className());
-                }
-                ValueOption[] valueOptions = property.optionProvider().valueOptions();
-                if (valueOptions != null) {
+                    ValueOption[] valueOptions = optionProvider.valueOptions();
                     pw.printf("                <enumeration>%n");
                     for (ValueOption valueOption : valueOptions) {
                         pw.printf(
