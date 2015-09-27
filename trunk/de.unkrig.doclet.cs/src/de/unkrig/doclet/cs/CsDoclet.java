@@ -273,8 +273,10 @@ class CsDoclet {
         Collection<Quickfix> allQuickfixes      = new ArrayList<Quickfix>();
         Set<OptionProvider>  allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
 
-            @Override public int
-            compare(OptionProvider op1, OptionProvider op2) { return op1.className().compareTo(op2.className()); }
+            @SuppressWarnings("null") @Override public int
+            compare(@Nullable OptionProvider op1, @Nullable OptionProvider op2) {
+                return op1.className().compareTo(op2.className());
+            }
         });
 
         for (PackageDoc pd : rootDoc.specifiedPackages()) {
@@ -867,7 +869,7 @@ class CsDoclet {
             @Override public String                    shortDescription()  { return shortDescription; }
             @Override public String                    longDescription()   { return longDescription;  }
             @Override public Collection<RuleProperty>  properties()        { return properties;       }
-            @Override public ClassDoc[]                quickfixClasses()   { return quickfixClasses;  }
+            @Override @Nullable public ClassDoc[]      quickfixClasses()   { return quickfixClasses;  }
             @Override @Nullable public Boolean         hasSeverity()       { return hasSeverity;      }
             @Override public SortedMap<String, String> messages()          { return messages;         }
         };
@@ -947,13 +949,13 @@ class CsDoclet {
          * @return The one-sentence description
          * @throws Longjump
          */
-        String shortDescription();
+        @Nullable String shortDescription();
 
         /**
          * @return The verbose description
          * @throws Longjump
          */
-        String longDescription();
+        @Nullable String longDescription();
 
         /**
          * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@link
@@ -1086,8 +1088,8 @@ class CsDoclet {
                         @Override @Nullable public String name()             { return null; }
                         @Override @Nullable public String className()        { return null; }
                         @Override public ValueOption[]    valueOptions()     { return valueOptions2; }
-                        @Override public String           shortDescription() { return null; }
-                        @Override public String           longDescription()  { return null; }
+                        @Override @Nullable public String shortDescription() { return null; }
+                        @Override @Nullable public String longDescription()  { return null; }
                     };
                 }
             } else {
@@ -1133,15 +1135,9 @@ class CsDoclet {
                     List<ValueOption> tmp3 = new ArrayList<CsDoclet.ValueOption>();
                     for (final String von : tmp2) {
                         tmp3.add(new ValueOption() {
-
-                            @Override public String
-                            name() { return von; }
-
-                            @Override public String
-                            shortDescription() { return null; }
-
-                            @Override public String
-                            longDescription() { return null; }
+                            @Override public String           name()             { return von; }
+                            @Override @Nullable public String shortDescription() { return null; }
+                            @Override @Nullable public String longDescription()  { return null; }
                         });
                     }
                     valueOptions2 = tmp3.toArray(new ValueOption[0]);
@@ -1171,7 +1167,7 @@ class CsDoclet {
                     @Override public String
                     longDescription() { return optionProviderLongDescription; }
 
-                    @Override @Nullable public ValueOption[]
+                    @Override public ValueOption[]
                     valueOptions() { return valueOptions2; }
                 };
 
