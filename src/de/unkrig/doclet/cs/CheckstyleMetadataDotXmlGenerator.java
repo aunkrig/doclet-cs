@@ -32,6 +32,7 @@ import java.util.Collection;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
+import de.unkrig.commons.text.Notations;
 import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
@@ -104,22 +105,25 @@ class CheckstyleMetadataDotXmlGenerator {
                     ),
                     rule.simpleName(),
                     property.name(),
-                    property.datatype(),
+                    Notations.fromUnderscored(property.datatype().toString()).toUpperCamelCase(),
                     property.defaultValue(),
                     property.overrideDefaultValue()
                 );
                 OptionProvider optionProvider = property.optionProvider();
                 if (optionProvider != null) {
-                    pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className());
-                    ValueOption[] valueOptions = optionProvider.valueOptions();
-                    pw.printf("                <enumeration>%n");
-                    for (ValueOption valueOption : valueOptions) {
-                        pw.printf(
-                            "                    <property-value-option value=\"%s\" />%n",
-                            valueOption.name()
-                        );
+                    if (optionProvider.className() != null) {
+                        pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className());
+                    } else {
+                        ValueOption[] valueOptions = optionProvider.valueOptions();
+                        pw.printf("                <enumeration>%n");
+                        for (ValueOption valueOption : valueOptions) {
+                            pw.printf(
+                                "                    <property-value-option value=\"%s\" />%n",
+                                valueOption.name()
+                            );
+                        }
+                        pw.printf("                </enumeration>%n");
                     }
-                    pw.printf("                </enumeration>%n");
                 }
                 pw.printf("            </property-metadata>%n");
             }
