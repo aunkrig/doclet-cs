@@ -1153,13 +1153,22 @@ class CsDoclet {
                     throw new Longjump();
                 }
 
+                String qualifiedClassName;
+                {
+                    ClassDoc containingClass = opc.containingClass();
+                    if (containingClass == null) {
+                        qualifiedClassName = opc.qualifiedName();
+                    } else {
+                        qualifiedClassName = opc.containingPackage().name() + '.' + opc.name().replace('.', '$');
+                    }
+                }
                 optionProvider = new OptionProvider() {
 
                     @Override public String
                     name() { return Tags.optionalTag(opc, "@cs-name", opc.qualifiedName(), rootDoc); }
 
                     @Override public String
-                    className() { return opc.qualifiedName(); }
+                    className() { return qualifiedClassName; }
 
                     @Override public String
                     shortDescription() { return optionProviderShortDescription; }
