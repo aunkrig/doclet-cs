@@ -87,7 +87,7 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
         constantsSection.summaryTitle2        = "Constants";
         constantsSection.summaryTableHeadings = new String[] { "Name", "Description" };
         constantsSection.detailTitle          = "Constant Detail";
-        constantsSection.items                = constantItems;
+        constantsSection.items.addAll(constantItems);
 
         super.rDetail(
             "Option Provider " + optionProvider.name(),                 // windowTitle
