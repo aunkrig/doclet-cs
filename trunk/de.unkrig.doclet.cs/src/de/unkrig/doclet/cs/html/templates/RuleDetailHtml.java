@@ -213,7 +213,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
         propertiesSection.summaryTitle2        = "Properties";
         propertiesSection.summaryTableHeadings = new String[] { "Name", "Description" };
         propertiesSection.detailTitle          = "Property Detail";
-        propertiesSection.items                = propertyItems;
+        propertiesSection.items.addAll(propertyItems);
 
         String familyCap = StringUtil.firstLetterToUpperCase(rule.familySingular());
 
@@ -361,9 +361,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
         assert valueOptions.length >= 1;
 
         Set<Object> dvs = new HashSet<Object>();
-        if (defaultValues != null) {
-            for (Object o : defaultValues) dvs.add(o.toString());
-        }
+        for (Object o : defaultValues) dvs.add(o.toString());
 
         StringBuilder sb  = new StringBuilder();
         for (int i = 0;;) {
