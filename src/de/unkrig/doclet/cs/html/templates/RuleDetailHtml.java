@@ -178,18 +178,21 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 break;
             }
 
-            String propertyLongDescription = property.longDescription();
-            if (property.optionProvider() != null) {
-                propertyLongDescription += "<p>Default values are <u>underlined</u>.</p>";
-                propertyLongDescription += "<p>For a description of the individual values, click them.</p>";
-            }
-
             SectionItem propertyItem = new SectionItem();
-
-            propertyItem.anchor            = property.name();
-            propertyItem.summaryTableCells = new String[] { property.name(), property.shortDescription() };
-            propertyItem.detailTitle       = detailTitle;
-            propertyItem.detailContent     = propertyLongDescription;
+            propertyItem.anchor             = property.name();
+            propertyItem.summaryTableCells  = new String[] { property.name(), property.shortDescription() };
+            propertyItem.detailTitle        = detailTitle;
+            propertyItem.printDetailContent = () -> {
+                this.l(
+property.longDescription()
+                );
+                if (property.optionProvider() != null) {
+                    this.l(
+"<p>Default values are <u>underlined</u>.</p>",
+"<p>For a description of the individual values, click them.</p>"
+                    );
+                }
+            };
 
             propertyItems.add(propertyItem);
 

@@ -72,10 +72,10 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
         for (ValueOption vo : optionProvider.valueOptions()) {
 
             SectionItem item = new SectionItem();
-            item.anchor            = vo.name();
-            item.summaryTableCells = new String[] { vo.name(), vo.shortDescription() };
-            item.detailTitle       = "Value Option \"" + vo.name() + "\"";
-            item.detailContent     = vo.longDescription();
+            item.anchor             = vo.name();
+            item.summaryTableCells  = new String[] { vo.name(), vo.shortDescription() };
+            item.detailTitle        = "Value Option \"" + vo.name() + "\"";
+            item.printDetailContent = () -> { this.p(vo.longDescription()); };
 
             constantItems.add(item);
         }
