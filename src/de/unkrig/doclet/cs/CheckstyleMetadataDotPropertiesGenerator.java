@@ -164,6 +164,7 @@ class CheckstyleMetadataDotPropertiesGenerator {
                         property.ref().position(),
                         rootDoc
                     );
+                    shortDescription = shortDescription.replaceAll("\\s+", " ");
 
                     pw.printf("%1$-40s = %2$s%n", rule.simpleName() + '.' + property.name(), shortDescription);
                 }
