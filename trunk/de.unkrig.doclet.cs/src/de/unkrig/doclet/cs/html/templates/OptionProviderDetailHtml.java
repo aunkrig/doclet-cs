@@ -75,7 +75,10 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
             item.anchor             = vo.name();
             item.summaryTableCells  = new String[] { vo.name(), vo.shortDescription() };
             item.detailTitle        = "Value Option \"" + vo.name() + "\"";
-            item.printDetailContent = () -> { this.p(vo.longDescription()); };
+            item.printDetailContent = () -> {
+                String longDescription = vo.longDescription();
+                if (longDescription != null) this.p(longDescription);
+            };
 
             constantItems.add(item);
         }
