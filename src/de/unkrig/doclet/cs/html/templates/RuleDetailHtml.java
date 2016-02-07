@@ -364,7 +364,9 @@ property.longDescription()
         assert valueOptions.length >= 1;
 
         Set<Object> dvs = new HashSet<Object>();
-        for (Object o : defaultValues) dvs.add(o.toString());
+        if (defaultValues != null) {
+            for (Object o : defaultValues) dvs.add(o.toString());
+        }
 
         StringBuilder sb  = new StringBuilder();
         for (int i = 0;;) {
