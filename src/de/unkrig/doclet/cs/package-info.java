@@ -25,7 +25,7 @@
  */
 
 /**
- * Main package of the plugin.
+ * Main package of the CheckStyle doclet.
  */
 @NotNullByDefault
 package de.unkrig.doclet.cs;

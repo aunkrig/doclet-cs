@@ -25,7 +25,7 @@
  */
 
 /**
- * Main package of the plugin.
+ * Templates for HTML generation from the CheckStyle doclet.
  */
 @NotNullByDefault
 package de.unkrig.doclet.cs.html.templates;
