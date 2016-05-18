@@ -44,6 +44,7 @@ import de.unkrig.commons.doclet.Docs;
 import de.unkrig.commons.doclet.Tags;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
+import de.unkrig.commons.doclet.html.Html.Link;
 import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.AssertionUtil;
@@ -251,21 +252,35 @@ class CsDoclet {
 
         Html html = new Html(new Html.ExternalJavadocsLinkMaker(externalJavadocs, new LinkMaker() {
 
-            @Override @Nullable public String
-            makeHref(Doc from, Doc to, RootDoc rootDoc) {
+            @Override public Link
+            makeLink(Doc from, Doc to, RootDoc rootDoc) {
 
-                if (!(to instanceof ClassDoc)) return null;
-                ClassDoc cd = (ClassDoc) to;
+                String href;
+                HREF: {
+                    if (!(to instanceof ClassDoc)) {
+                        href = null;
+                        break HREF;
+                    }
+                    ClassDoc cd = (ClassDoc) to;
 
-                if (Docs.isSubclassOf(cd, checkClass))    return "checks/"     + cd.simpleTypeName() + ".html";
-                if (Docs.isSubclassOf(cd, filterClass))   return "filters/"    + cd.simpleTypeName() + ".html";
-                if (Docs.isSubclassOf(cd, quickfixClass)) return "quickfixes/" + cd.simpleTypeName() + ".html";
+                    if (Docs.isSubclassOf(cd, checkClass)) {
+                        href = "checks/"     + cd.simpleTypeName() + ".html";
+                        break HREF;
+                    }
+                    if (Docs.isSubclassOf(cd, filterClass)) {
+                        href = "filters/"    + cd.simpleTypeName() + ".html";
+                        break HREF;
+                    }
+                    if (Docs.isSubclassOf(cd, quickfixClass)) {
+                        href = "quickfixes/" + cd.simpleTypeName() + ".html";
+                        break HREF;
+                    }
 
-                return null;
+                    href = null;
+                }
+
+                return new Link(href, to.name());
             }
-
-            @Override public String
-            makeDefaultLabel(Doc from, Doc to, RootDoc rootDoc) { return to.name(); }
         }));
 
         // Process all specified packages.
