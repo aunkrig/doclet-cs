@@ -112,7 +112,7 @@ class CheckstyleMetadataDotXmlGenerator {
                 OptionProvider optionProvider = property.optionProvider();
                 if (optionProvider != null) {
                     if (optionProvider.className() != null) {
-                        pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className());
+                        pw.printf("                <enumeration option-provider=\"%s\" />%n", optionProvider.className()); // SUPPRESS CHECKSTYLE LineLength
                     } else {
                         ValueOption[] valueOptions = optionProvider.valueOptions();
                         pw.printf("                <enumeration>%n");
