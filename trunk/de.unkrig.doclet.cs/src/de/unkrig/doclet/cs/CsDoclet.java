@@ -53,7 +53,7 @@ import de.unkrig.commons.lang.protocol.ConsumerUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
-import de.unkrig.commons.text.CamelCase;
+import de.unkrig.commons.text.Notations;
 import de.unkrig.commons.util.collections.IterableUtil;
 import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.csdoclet.annotation.BooleanRuleProperty;
@@ -1050,7 +1050,7 @@ class CsDoclet {
             int    idx  = atsn.indexOf("RuleProperty");
 
             assert idx != -1 : atsn;
-            datatype = Datatype.valueOf(CamelCase.toUpperCaseUnderscoreSeparated(atsn.substring(0, idx)));
+            datatype = Datatype.valueOf(Notations.fromCamelCase(atsn.substring(0, idx)).toUpperCaseUnderscored());
         }
 
         // Determine the property name.
