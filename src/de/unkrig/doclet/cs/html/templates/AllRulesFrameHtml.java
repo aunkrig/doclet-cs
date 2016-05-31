@@ -105,12 +105,12 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
                     for (Rule rule : rulesOfFamily) {
                         try {
                             String link = html.makeLink(
-                               rootDoc,     // from
-                               rule.ref(),  // to
-                               true,        // plain
-                               rule.name(), // label
-                               "ruleFrame", // target
-                               rootDoc      // rootDoc
+                                rootDoc,     // from
+                                rule.ref(),  // to
+                                true,        // plain
+                                rule.name(), // label
+                                "ruleFrame", // target
+                                rootDoc      // rootDoc
                             );
                             AllRulesFrameHtml.this.l(
 "        <li>" + link + "</li>"
