@@ -160,9 +160,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             () -> {                            // prolog
                 if (options.docTitle != null) {
                     this.l(
-"<div class=\"header\">",
-"  <h1 class=\"title\">" + options.docTitle + "</h1>",
-"</div>"
+"<h1 class=\"title\">" + options.docTitle + "</h1>"
                     );
                 }
 
@@ -173,7 +171,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
                 if (!overviewFirstSentenceHtml.isEmpty()) {
                     this.l(
-"<div class=\"header\">",
+"<div class=\"docSummary\">",
 "  <div class=\"subTitle\">",
 "    <div class=\"block\">" + overviewFirstSentenceHtml + "</div>",
 "  </div>",
@@ -191,7 +189,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
                 if (!overviewHtml.isEmpty()) {
                     this.l(
-"<a name=\"description\">",
+"<a name=\"description\" />",
 overviewHtml
                     );
                 }
