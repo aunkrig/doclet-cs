@@ -115,7 +115,8 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
                 "All Rules", "../allrules-noframe.html",
             },
             null,                                                       // subtitle
-            "Option Provider \"" + optionProvider.name() + "\"",        // title
+            "Option Provider \"" + optionProvider.name() + "\"",        // heading
+            "Option Provider \"" + optionProvider.name() + "\"",        // headingTitle
             () -> {                                                     // prolog
                 OptionProviderDetailHtml.this.l(
 "  <div class=\"description\">",

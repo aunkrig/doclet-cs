@@ -88,7 +88,8 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
                 "All Rules", "../allrules-noframe.html",
             },
             null,                                                       // subtitle
-            "Quickfix \"" + quickfix.label() + "\"",                    // title
+            "Quickfix \"" + quickfix.label() + "\"",                    // heading
+            "Quickfix \"" + quickfix.label() + "\"",                    // headingTitle
             () -> {                                                     // prolog
                 QuickfixDetailHtml.this.l(
 "  <div class=\"description\">"

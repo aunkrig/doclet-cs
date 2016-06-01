@@ -262,7 +262,8 @@ property.longDescription()
                 "All Rules", "../allrules-noframe.html",
             },
             null,                                                         // subtitle
-            familyCap + " \"" + rule.name() + "\"",                       // title
+            familyCap + " \"" + rule.name() + "\"",                       // heading
+            familyCap + " \"" + rule.name() + "\"",                       // headingTitle
             () -> {                                                       // prolog
                 RuleDetailHtml.this.l(
 "  <div class=\"description\">"
