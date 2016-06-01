@@ -63,6 +63,7 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
     ) {
 
         super.rBottomLeftFrameHtml(
+            "All rules",                       // windowTitle
             "All rules",                       // heading
             "overview-summary.html",           // headingLink
             options,                           // options
