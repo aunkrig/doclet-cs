@@ -99,7 +99,6 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             section.anchor             = familyPlural;
             section.title              = StringUtil.firstLetterToUpperCase(familyPlural);
             section.firstColumnHeading = "Name";
-            section.items              = new ArrayList<SectionItem>();
             section.summary            = familyPlural;
 
             for (Rule rule : rulesOfFamily) {
@@ -120,7 +119,6 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             section.anchor             = "quickfixes";
             section.title              = "Quickfixes";
             section.firstColumnHeading = "Name";
-            section.items              = new ArrayList<SectionItem>();
             section.summary            = "Quickfixes for the checks.";
 
             for (Quickfix quickfix : quickfixes) {
