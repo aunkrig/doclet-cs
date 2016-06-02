@@ -64,10 +64,10 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
 
         super.rBottomLeftFrameHtml(
             "All rules",                       // windowTitle
-            "All rules",                       // heading
-            "overview-summary.html",           // headingLink
             options,                           // options
             new String[] { "stylesheet.css" }, // stylesheetLinks
+            "All rules",                       // heading
+            "overview-summary.html",           // headingLink
             null,                              // renderIndexHeader
             () -> {                            // renderIndexContainer
                 AllRulesFrameHtml.this.l(
