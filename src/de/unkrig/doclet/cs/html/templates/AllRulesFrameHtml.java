@@ -68,7 +68,8 @@ class AllRulesFrameHtml extends AbstractBottomLeftFrameHtml {
             "overview-summary.html",           // headingLink
             options,                           // options
             new String[] { "stylesheet.css" }, // stylesheetLinks
-            () -> {                            // renderBody
+            null,                              // renderIndexHeader
+            () -> {                            // renderIndexContainer
                 AllRulesFrameHtml.this.l(
 "    <div class=\"indexContainer \">"
                 );
