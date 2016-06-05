@@ -71,25 +71,28 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
         List<SectionItem> constantItems = new ArrayList<AbstractDetailHtml.SectionItem>();
         for (ValueOption vo : optionProvider.valueOptions()) {
 
-            SectionItem item = new SectionItem();
-            item.anchor             = vo.name();
-            item.summaryTableCells  = new String[] { vo.name(), vo.shortDescription() };
-            item.detailTitle        = "Value Option \"" + vo.name() + "\"";
-            item.printDetailContent = () -> {
-                String longDescription = vo.longDescription();
-                if (longDescription != null) this.p(longDescription);
-            };
-
-            constantItems.add(item);
+            constantItems.add(new SectionItem(
+                vo.name(),                                         // anchor
+                new String[] { vo.name(), vo.shortDescription() }, // summaryTableCells
+                "Value Option \"" + vo.name() + "\"",              // detailTitle
+                () -> {                                            // printDetailContent
+                    String longDescription = vo.longDescription();
+                    if (longDescription != null) this.p(longDescription);
+                }
+            ));
         }
 
-        AbstractDetailHtml.Section constantsSection = new Section();
-        constantsSection.anchor               = "constants";
-        constantsSection.navigationLinkLabel  = "Constants";
-        constantsSection.summaryTitle1        = "Constant Summary";
-        constantsSection.summaryTitle2        = "Constants";
-        constantsSection.summaryTableHeadings = new String[] { "Name", "Description" };
-        constantsSection.detailTitle          = "Constant Detail";
+        AbstractDetailHtml.Section constantsSection = new Section(
+            "constants",                            // anchor
+            "Constants",                            // navigationLinkLabel
+            "Constant Summary",                     // summaryTitle1
+            "Constants",                            // summaryTitle2
+            new String[] { "Name", "Description" }, // summaryTableHeadings
+            "Constant Detail",                      // detailTitle
+            null,                                   // detailDescription
+            null                                    // summaryItemComparator
+        );
+
         constantsSection.items.addAll(constantItems);
 
         super.rDetail(

@@ -95,19 +95,19 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             String                 familyPlural  = e.getKey();
             final Collection<Rule> rulesOfFamily = e.getValue();
 
-            Section section = new Section();
-            section.anchor             = familyPlural;
-            section.title              = StringUtil.firstLetterToUpperCase(familyPlural);
-            section.firstColumnHeading = "Name";
-            section.summary            = familyPlural;
+            Section section = new Section(
+                familyPlural,                                    // anchor
+                StringUtil.firstLetterToUpperCase(familyPlural), // title
+                familyPlural,                                    // summary
+                "Name"                                           //  firstColumnHeading
+            );
 
             for (Rule rule : rulesOfFamily) {
-                SectionItem item = new SectionItem();
-                item.link    = familyPlural + '/' + ((ClassDoc) rule.ref()).simpleTypeName() + ".html";
-                item.name    = rule.name();
-                item.summary = rule.shortDescription();
-
-                section.items.add(item);
+                section.items.add(new SectionItem(
+                    familyPlural + '/' + ((ClassDoc) rule.ref()).simpleTypeName() + ".html", // link
+                    rule.name(),                                                             // name
+                    rule.shortDescription()                                                  // summaryy
+                ));
             }
 
             sections.add(section);
@@ -115,19 +115,19 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
 
         // Add the "Quickfixes" section.
         {
-            Section section = new Section();
-            section.anchor             = "quickfixes";
-            section.title              = "Quickfixes";
-            section.firstColumnHeading = "Name";
-            section.summary            = "Quickfixes for the checks.";
+            Section section = new Section(
+                "quickfixes",                 // anchor
+                "Quickfixes",                 // title
+                "Quickfixes for the checks.", // summary
+                "Name"                        // firstColumnHeading
+            );
 
             for (Quickfix quickfix : quickfixes) {
-                SectionItem item = new SectionItem();
-                item.link    = "quickfixes/" + quickfix.label() + ".html";
-                item.name    = quickfix.label();
-                item.summary = quickfix.shortDescription();
-
-                section.items.add(item);
+                section.items.add(new SectionItem(
+                    "quickfixes/" + quickfix.label() + ".html", // link
+                    quickfix.label(),                           // name
+                    quickfix.shortDescription()                 // summary
+                ));
             }
 
             sections.add(section);
@@ -188,7 +188,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                 if (!overviewHtml.isEmpty()) {
                     this.l(
 "<a name=\"description\" />",
-overviewHtml
+"" + overviewHtml
                     );
                 }
             },
