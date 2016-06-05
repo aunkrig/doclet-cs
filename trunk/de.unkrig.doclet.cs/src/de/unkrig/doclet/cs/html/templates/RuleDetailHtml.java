@@ -178,23 +178,22 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 break;
             }
 
-            SectionItem propertyItem = new SectionItem();
-            propertyItem.anchor             = property.name();
-            propertyItem.summaryTableCells  = new String[] { property.name(), property.shortDescription() };
-            propertyItem.detailTitle        = detailTitle;
-            propertyItem.printDetailContent = () -> {
-                this.l(
-property.longDescription()
-                );
-                if (property.optionProvider() != null) {
+            propertyItems.add(new SectionItem(
+                property.name(),                                               // anchor
+                new String[] { property.name(), property.shortDescription() }, // summaryTableCells
+                detailTitle,                                                   // detailTitle
+                () -> {                                                        // printDetailContent
                     this.l(
+"" + property.longDescription()
+                    );
+                    if (property.optionProvider() != null) {
+                        this.l(
 "<p>Default values are <u>underlined</u>.</p>",
 "<p>For a description of the individual values, click them.</p>"
-                    );
+                        );
+                    }
                 }
-            };
-
-            propertyItems.add(propertyItem);
+            ));
 
             // Index entry for rule property.
             {
@@ -209,13 +208,17 @@ property.longDescription()
             }
         }
 
-        Section propertiesSection = new Section();
-        propertiesSection.anchor               = "property";
-        propertiesSection.navigationLinkLabel  = "Props";
-        propertiesSection.summaryTitle1        = "Property Summary";
-        propertiesSection.summaryTitle2        = "Properties";
-        propertiesSection.summaryTableHeadings = new String[] { "Name", "Description" };
-        propertiesSection.detailTitle          = "Property Detail";
+        Section propertiesSection = new Section(
+            "property",                             // anchor
+            "Props",                                // navigationLinkLabel
+            "Property Summary",                     // summaryTitle1
+            "Properties",                           // summaryTitle2
+            new String[] { "Name", "Description" }, // summaryTableHeadings
+            "Property Detail",                      // detailTitle
+            null,                                   // detailDescription
+            null                                    // summaryItemComparator
+        );
+
         propertiesSection.items.addAll(propertyItems);
 
         String familyCap = StringUtil.firstLetterToUpperCase(rule.familySingular());
@@ -253,18 +256,18 @@ property.longDescription()
                 "Index",      "../" + indexLink,
                 "Help",       "../help-doc.html",
             },
-            new String[] { previousRuleLink, nextRuleLink, },             // nav2
-            new String[] {                                                // nav3
+            new String[] { previousRuleLink, nextRuleLink, },           // nav2
+            new String[] {                                              // nav3
                 "Frames",    "../index.html?" + rule.familyPlural() + "/" + rule.simpleName() + ".html",
                 "No Frames", "#top",
             },
-            new String[] {                                                // nav4
+            new String[] {                                              // nav4
                 "All Rules", "../allrules-noframe.html",
             },
-            null,                                                         // subtitle
-            familyCap + " \"" + rule.name() + "\"",                       // heading
-            familyCap + " \"" + rule.name() + "\"",                       // headingTitle
-            () -> {                                                       // prolog
+            null,                                                       // subtitle
+            familyCap + " \"" + rule.name() + "\"",                     // heading
+            familyCap + " \"" + rule.name() + "\"",                     // headingTitle
+            () -> {                                                     // prolog
                 RuleDetailHtml.this.l(
 "  <div class=\"description\">"
                 );
