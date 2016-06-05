@@ -460,7 +460,7 @@ class CsDoclet {
                     options.destination,
                     "option-providers/" + optionProvider.current().className() + ".html"
                 ),
-                optionProviderHtml -> {               // renderer
+                optionProviderHtml -> {         // renderer
                     optionProviderHtml.render(optionProvider, html, rootDoc, options, indexLink, indexEntryConsumer);
                 }
             );
