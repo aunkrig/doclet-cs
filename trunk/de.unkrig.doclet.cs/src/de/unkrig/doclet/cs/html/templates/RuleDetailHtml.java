@@ -67,7 +67,6 @@ class RuleDetailHtml extends AbstractDetailHtml {
         final Html                     html,
         final RootDoc                  rootDoc,
         Options                        options,
-        String                         indexLink,
         Consumer<? super IndexEntry>   indexEntries
     ) {
 
@@ -184,12 +183,12 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 detailTitle,                                                   // detailTitle
                 () -> {                                                        // printDetailContent
                     this.l(
-"" + property.longDescription()
+"      " + property.longDescription()
                     );
                     if (property.optionProvider() != null) {
                         this.l(
-"<p>Default values are <u>underlined</u>.</p>",
-"<p>For a description of the individual values, click them.</p>"
+"      <p>Default values are <u>underlined</u>.</p>",
+"      <p>For a description of the individual values, click them.</p>"
                         );
                     }
                 }
@@ -253,7 +252,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                 "Overview",   "../overview-summary.html",
                 familyCap,    AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
-                "Index",      "../" + indexLink,
+                "Index",      "../" + (options.splitIndex ? "index-files/index-1.html" : "index-all.html"),
                 "Help",       "../help-doc.html",
             },
             new String[] { previousRuleLink, nextRuleLink, },           // nav2
@@ -269,11 +268,11 @@ class RuleDetailHtml extends AbstractDetailHtml {
             familyCap + " \"" + rule.name() + "\"",                     // headingTitle
             () -> {                                                     // prolog
                 RuleDetailHtml.this.l(
-"  <div class=\"description\">"
+"      <div class=\"description\">"
                 );
                 this.l(rule.longDescription());
                 RuleDetailHtml.this.l(
-"  </div>"
+"      </div>"
                 );
             },
             Collections.singletonList(propertiesSection)

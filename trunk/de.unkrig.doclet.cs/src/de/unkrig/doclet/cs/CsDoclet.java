@@ -95,25 +95,6 @@ class CsDoclet {
 
     public static LanguageVersion languageVersion() { return LanguageVersion.JAVA_1_5; }
 
-    enum IndexStyle {
-
-        /**
-         * Do not generate an index (typically due to a "-no-index" command line option).
-         */
-        NONE,
-
-        /**
-         * Generate an index on a single page (typically the default).
-         */
-        SINGLE,
-
-        /**
-         * Generate an index with one page per initial ("A", "B", ...) (typically due to a "-split-index" command line
-         * option).
-         */
-        SPLIT,
-    }
-
     /**
      * See <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/javadoc/doclet/overview.html">"Doclet
      * Overview"</a>.
@@ -138,7 +119,6 @@ class CsDoclet {
         if ("-link".equals(option))                               return 2;
         if ("-linkoffline".equals(option))                        return 3;
         if ("-splitindex".equals(option))                         return 1;
-        if ("-noindex".equals(option))                            return 1;
 
         return 0;
     }
@@ -163,8 +143,6 @@ class CsDoclet {
         File    messagesDotPropertiesDir           = null;
 
         final Map<String /*packageName*/, URL /*target*/> externalJavadocs = new HashMap<String, URL>();
-
-        IndexStyle indexStyle = IndexStyle.SINGLE;
 
         for (String[] option : rootDoc.options()) {
 
@@ -216,10 +194,7 @@ class CsDoclet {
                 Docs.readExternalJavadocs(targetUrl, packageListUrl, externalJavadocs, rootDoc);
             } else
             if ("-splitindex".equals(option[0])) {
-                indexStyle = IndexStyle.SPLIT;
-            } else
-            if ("-noindex".equals(option[0])) {
-                indexStyle = IndexStyle.NONE;
+                options.splitIndex = true;
             } else
             {
 
@@ -374,7 +349,7 @@ class CsDoclet {
 
         // Generate HTML (JAVADOCish) documentation.
         if (generateHtml) {
-            CsDoclet.generateHtml(allRules, allQuickfixes, allOptionProviders, options, indexStyle, rootDoc, html);
+            CsDoclet.generateHtml(allRules, allQuickfixes, allOptionProviders, options, rootDoc, html);
         }
 
         return true;
@@ -390,7 +365,6 @@ class CsDoclet {
         Collection<Quickfix>       allQuickfixes,
         Collection<OptionProvider> allOptionProviders,
         Options                    options,
-        IndexStyle                 indexStyle,
         RootDoc                    rootDoc,
         Html                       html
     ) throws IOException {
@@ -413,14 +387,6 @@ class CsDoclet {
             indexHtml -> { indexHtml.render(options); }
         );
 
-        String indexLink;
-        switch (indexStyle) {
-        case NONE:   indexLink = AbstractRightFrameHtml.DISABLED; break;
-        case SINGLE: indexLink = "index-all.html";                break;
-        case SPLIT:  indexLink = "index-pages/index-1.html";      break;
-        default:     throw new AssertionError(indexStyle);
-        }
-
         // Render the per-rule document for all rules.
         for (ElementWithContext<Rule> rule : IterableUtil.iterableWithContext(allRules)) {
 
@@ -431,7 +397,7 @@ class CsDoclet {
                     rule.current().familyPlural() + '/' + ((ClassDoc) rule.current().ref()).simpleTypeName() + ".html"
                 ),
                 ruleHtml -> {         // renderer
-                    ruleHtml.render(rule, html, rootDoc, options, indexLink, indexEntryConsumer);
+                    ruleHtml.render(rule, html, rootDoc, options, indexEntryConsumer);
                 }
             );
         }
@@ -446,7 +412,7 @@ class CsDoclet {
                     "quickfixes/" + ((ClassDoc) quickfix.current().ref()).simpleTypeName() + ".html"
                 ),
                 quickfixHtml -> {         // renderer
-                    quickfixHtml.render(quickfix, html, rootDoc, options, indexLink, indexEntryConsumer);
+                    quickfixHtml.render(quickfix, html, rootDoc, options, indexEntryConsumer);
                 }
             );
         }
@@ -461,7 +427,7 @@ class CsDoclet {
                     "option-providers/" + optionProvider.current().className() + ".html"
                 ),
                 optionProviderHtml -> {         // renderer
-                    optionProviderHtml.render(optionProvider, html, rootDoc, options, indexLink, indexEntryConsumer);
+                    optionProviderHtml.render(optionProvider, html, rootDoc, options, indexEntryConsumer);
                 }
             );
         }
@@ -482,50 +448,23 @@ class CsDoclet {
             OverviewSummaryHtml.class,
             new File(options.destination, "overview-summary.html"),
             overviewSummaryHtml -> {
-                overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, indexLink, html);
+                overviewSummaryHtml.render(allRules, allQuickfixes, rootDoc, options, html);
             }
         );
 
-        // Generate the index file(s).
-        switch (indexStyle) {
-
-        case NONE:
-            ;
-            break;
-
-        case SINGLE:
-            IndexPages.createSingleIndex(
-                new File(options.destination, "index-all.html"), // outputFile
-                indexEntries,                                    // entries
-                options,                                         // options
-                new String[] {                                   // nav1
-                    "Overview",   "overview-summary.html",
-                    "Rule",       AbstractRightFrameHtml.DISABLED,
-                    "Deprecated", "deprecated-list.html",
-                    "Index",      AbstractRightFrameHtml.HIGHLIT,
-                    "Help",       "help-doc.html",
-                }
-            );
-            break;
-
-        case SPLIT:
-            IndexPages.createSplitIndex(
-                new File(options.destination, "index-all.html"), // outputFile
-                indexEntries,                                    // entries
-                options,                                         // options
-                new String[] {                                   // nav1
-                    "Overview",   "overview-summary.html",
-                    "Rule",       AbstractRightFrameHtml.DISABLED,
-                    "Deprecated", "deprecated-list.html",
-                    "Index",      AbstractRightFrameHtml.HIGHLIT,
-                    "Help",       "help-doc.html",
-                }
-            );
-            break;
-
-        default:
-            throw new AssertionError(indexStyle);
-        }
+        // Generate the index page(s).
+        IndexPages.createIndex(
+            options.destination, // outputFile
+            indexEntries,        // entries
+            options,             // options
+            new String[] {       // nav1
+                "Overview",   "overview-summary.html",
+                "Rule",       AbstractRightFrameHtml.DISABLED,
+                "Deprecated", "deprecated-list.html",
+                "Index",      AbstractRightFrameHtml.HIGHLIT,
+                "Help",       "help-doc.html",
+            }
+        );
     }
 
     /**
@@ -562,7 +501,7 @@ class CsDoclet {
             newFile.delete();
 
             throw re;
-        } catch (Error e) { // SUPPRESS CHECKSTYLE IllegalCatch
+        } catch (Error e) {     // SUPPRESS CHECKSTYLE IllegalCatch
             try { pw.close(); } catch (Exception e2) {}
             newFile.delete();
 

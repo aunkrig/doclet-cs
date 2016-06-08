@@ -66,9 +66,18 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
         Collection<Quickfix> quickfixes,
         final RootDoc        rootDoc,
         final Options        options,
-        String               indexLink,
         final Html           html
     ) {
+
+        final String overviewFirstSentenceHtml = AssertionUtil.notNull(Longjump.catchLongjump(
+            () -> html.fromTags(rootDoc.firstSentenceTags(), rootDoc, rootDoc),
+            ""
+        ));
+
+        final String overviewHtml = AssertionUtil.notNull(Longjump.catchLongjump(
+            () -> html.fromTags(rootDoc.inlineTags(), rootDoc, rootDoc),
+            ""
+        ));
 
         Map<String /*familyPlural*/, Collection<Rule>> rulesByFamily = new TreeMap<String, Collection<Rule>>();
         for (Rule rule : rules) {
@@ -141,7 +150,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                 "Overview",   AbstractRightFrameHtml.HIGHLIT,
                 "Check",      AbstractRightFrameHtml.DISABLED,
                 "Deprecated", "deprecated-list.html",
-                "Index",      indexLink,
+                "Index",      options.splitIndex ? "index-files/index-1.html" : "index-all.html",
                 "Help",       "help-doc.html",
             },
             new String[] {                     // nav2
@@ -155,44 +164,40 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
             new String[] {                     // nav4
                 "All Rules", "allclasses-noframe.html",
             },
-            () -> {                            // prolog
-                if (options.docTitle != null) {
+            new Runnable[] {                   // renderHeaders
+                options.docTitle == null ? null : () -> {
                     this.l(
-"<h1 class=\"title\">" + options.docTitle + "</h1>"
+"      <h1 class=\"title\">" + options.docTitle + "</h1>"
                     );
-                }
-
-                String overviewFirstSentenceHtml = "";
-                try {
-                    overviewFirstSentenceHtml = html.fromTags(rootDoc.firstSentenceTags(), rootDoc, rootDoc);
-                } catch (Longjump l) {}
-
-                if (!overviewFirstSentenceHtml.isEmpty()) {
+                },
+                overviewFirstSentenceHtml.isEmpty() ? null : () -> {
                     this.l(
-"<div class=\"docSummary\">",
-"  <div class=\"subTitle\">",
-"    <div class=\"block\">" + overviewFirstSentenceHtml + "</div>",
-"  </div>",
-"  <p>See: <a href=\"#description\">Description</a></p>",
-"</div>"
+"      <div class=\"docSummary\">",
+"        <div class=\"subTitle\">",
+"          <div class=\"block\">" + overviewFirstSentenceHtml + "</div>",
+"        </div>"
                     );
-                }
+                    if (!overviewHtml.isEmpty()) {
+                        this.l(
+"        <p>See: <a href=\"#description\">Description</a></p>"
+                        );
+                    }
+                    this.l(
+"      </div>"
+                    );
+                },
             },
             () -> {                            // epilog
-
-                String overviewHtml = "";
-                try {
-                    overviewHtml = html.fromTags(rootDoc.inlineTags(), rootDoc, rootDoc);
-                } catch (Longjump l) {}
-
+                this.l(
+"      <a name=\"description\" />"
+                );
                 if (!overviewHtml.isEmpty()) {
                     this.l(
-"<a name=\"description\" />",
-"" + overviewHtml
+"      " + overviewHtml
                     );
                 }
             },
-            sections
+            sections                           // sections
         );
     }
 }

@@ -57,7 +57,6 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
         final Html                         html,
         final RootDoc                      rootDoc,
         Options                            options,
-        String                             indexLink,
         Consumer<? super IndexEntry>       indexEntries
     ) {
 
@@ -73,7 +72,7 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
                 "Overview",   "../overview-summary.html",
                 "QUickfix",   AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
-                "Index",      indexLink,
+                "Index",      "../" + (options.splitIndex ? "index-files/index-1.html" : "index-all.html"),
                 "Help",       "../help-doc.html",
             },
             new String[] {                                              // nav2
@@ -92,12 +91,11 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
             "Quickfix \"" + quickfix.label() + "\"",                    // headingTitle
             () -> {                                                     // prolog
                 QuickfixDetailHtml.this.l(
-"  <div class=\"description\">"
+"      <div class=\"description\">"
                 );
                 this.l(quickfix.longDescription());
                 QuickfixDetailHtml.this.l(
-"  </div>",
-"</div>"
+"      </div>"
                 );
             },
             Collections.emptyList()                                     // sections

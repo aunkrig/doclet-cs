@@ -60,7 +60,6 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
         final Html                               html,
         final RootDoc                            rootDoc,
         Options                                  options,
-        String                                   indexLink,
         Consumer<? super IndexEntry>             indexEntries
     ) {
 
@@ -103,7 +102,7 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
                 "Overview",        "../overview-summary.html",
                 "Option Provider", AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated",      "../deprecated-list.html",
-                "Index",           indexLink,
+                "Index",           "../" + (options.splitIndex ? "index-files/index-1.html" : "index-all.html"),
                 "Help",            "../help-doc.html",
             },
             new String[] {                                              // nav2
@@ -122,10 +121,9 @@ class OptionProviderDetailHtml extends AbstractDetailHtml {
             "Option Provider \"" + optionProvider.name() + "\"",        // headingTitle
             () -> {                                                     // prolog
                 OptionProviderDetailHtml.this.l(
-"  <div class=\"description\">",
-"    " + optionProvider.longDescription(),
-"  </div>",
-"</div>"
+"      <div class=\"description\">",
+"        " + optionProvider.longDescription(),
+"      </div>"
                 );
             },
             Collections.singletonList(constantsSection)                 // sections
