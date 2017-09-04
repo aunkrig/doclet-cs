@@ -127,12 +127,13 @@ class CheckstyleMetadataDotPropertiesGenerator {
 
                     for (ClassDoc quickfixClass : quickfixClasses) {
 
-                        final String quickfixLabel = CheckstyleMetadataDotPropertiesGenerator.html.optionalTag(
+                        String quickfixLabel = CheckstyleMetadataDotPropertiesGenerator.html.optionalTag(
                             quickfixClass,
                             "@cs-label",
-                            quickfixClass.qualifiedTypeName(), // defaulT
                             rootDoc
                         );
+                        if (quickfixLabel == null) quickfixLabel = quickfixClass.qualifiedTypeName();
+
                         final String quickfixShortDescription = CheckstyleMetadataDotPropertiesGenerator.html.fromTags(
                             quickfixClass.firstSentenceTags(),
                             quickfixClass,
@@ -149,11 +150,12 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     description += String.format("</dl>");
                 }
 
-                description = CheckstyleMetadataDotPropertiesGenerator.html.fromJavadocText(
-                    description,
-                    rule.ref(),
-                    rootDoc
-                );
+                // TODO What was this supposed to do?
+//                description = CheckstyleMetadataDotPropertiesGenerator.html.fromJavadocText(
+//                    description,
+//                    rule.ref(),
+//                    rootDoc
+//                );
 
                 CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(description, pw);
 

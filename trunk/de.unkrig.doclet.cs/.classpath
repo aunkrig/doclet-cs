@@ -2,15 +2,15 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.nullanalysis"/>
 	<classpathentry kind="var" path="JDK_1.8/lib/tools.jar"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.doclet"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.lang"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/no-template-core"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.io"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.util"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.doclet.cs.annotation"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/de.unkrig.commons.text"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-nullanalysis"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-lang"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-doclet"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-text"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-io"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/commons-util"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
