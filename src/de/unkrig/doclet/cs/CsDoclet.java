@@ -41,7 +41,6 @@ import com.sun.javadoc.*;
 
 import de.unkrig.commons.doclet.Annotations;
 import de.unkrig.commons.doclet.Docs;
-import de.unkrig.commons.doclet.Tags;
 import de.unkrig.commons.doclet.Types;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.doclet.html.Html.Link;
@@ -54,8 +53,8 @@ import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.text.Notations;
+import de.unkrig.commons.util.collections.ElementWithContext;
 import de.unkrig.commons.util.collections.IterableUtil;
-import de.unkrig.commons.util.collections.IterableUtil.ElementWithContext;
 import de.unkrig.csdoclet.annotation.BooleanRuleProperty;
 import de.unkrig.csdoclet.annotation.FileRuleProperty;
 import de.unkrig.csdoclet.annotation.HiddenRuleProperty;
@@ -632,7 +631,10 @@ class CsDoclet {
         Html                             html
     ) throws Longjump {
 
-        ClassDoc checkClass  = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
+        // In CS 6.19, the base class is "AbstractCheck", not "Check".
+        ClassDoc checkClass = rootDoc.classNamed("com.puppycrawl.tools.checkstyle.api.AbstractCheck");
+        if (checkClass == null) checkClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
+
         ClassDoc filterClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
@@ -651,7 +653,7 @@ class CsDoclet {
                 familyPlural   = "filters";
             } else
             {
-                rootDoc.printError(classDoc.position(), "Rule cannot be identified as a check or a filter");
+                rootDoc.printError(classDoc.position(), "Rule \"" + classDoc.qualifiedTypeName() + "\" cannot be identified as a check or a filter");
                 continue;
             }
 
@@ -689,13 +691,8 @@ class CsDoclet {
                 final String
                 className = classDoc.qualifiedTypeName();
 
-                final String
-                quickfixLabel = html.optionalTag(
-                    classDoc,
-                    "@cs-label",
-                    classDoc.qualifiedTypeName(), // defaulT
-                    rootDoc
-                );
+                String       s             = html.optionalTag(classDoc, "@cs-label", rootDoc);
+                final String quickfixLabel = s != null ? s : classDoc.qualifiedTypeName();
 
                 final String
                 quickfixShortDescription = html.fromTags(
@@ -1119,7 +1116,16 @@ class CsDoclet {
                 optionProvider = new OptionProvider() {
 
                     @Override public String
-                    name() { return Tags.optionalTag(opc, "@cs-name", opc.qualifiedName(), rootDoc); }
+                    name() {
+                        String result;
+                        try {
+                            result = html.optionalTag(opc, "@cs-name", rootDoc);
+                        } catch (Longjump e) {
+                            result = "???";
+                        }
+                        if (result == null) result = opc.qualifiedName();
+                        return result;
+                    }
 
                     @Override public String
                     className() { return qualifiedClassName; }
