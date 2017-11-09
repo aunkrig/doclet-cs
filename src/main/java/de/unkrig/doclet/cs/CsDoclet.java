@@ -932,9 +932,6 @@ class CsDoclet {
     }
 
     /**
-     * Invokes {@link RulePropertyHandler#handeRuleProperty(String, SourcePosition, String, String, String, String,
-     * Class, AnnotationValue[], Object, Object)} for each property of the rule designated by {@code classDoc}.
-     *
      * @param usedOptionProviders Consumers any option provider (ENUM type or {@link
      *                            net.sf.eclipsecs.core.config.meta.IOptionProvider} needed by the properties
      */
