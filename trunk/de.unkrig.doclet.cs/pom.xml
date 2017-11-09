@@ -8,7 +8,7 @@
 
 	<groupId>de.unkrig</groupId>
 	<artifactId>doclet-cs</artifactId>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>1.0.1</version>
 
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
@@ -50,7 +50,7 @@
 		<dependency>
 			<groupId>de.unkrig</groupId>
 			<artifactId>doclet-cs-annotation</artifactId>
-			<version>1.0.1-SNAPSHOT</version>
+			<version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>de.unkrig</groupId>
