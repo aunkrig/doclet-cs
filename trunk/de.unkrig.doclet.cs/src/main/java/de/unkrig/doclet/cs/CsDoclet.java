@@ -217,9 +217,9 @@ class CsDoclet {
 
         ClassDoc checkClass, filterClass, quickfixClass;
         try {
-            checkClass    = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
-            filterClass   = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
-            quickfixClass = Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+            checkClass    = CsDoclet.getCheckClass(rootDoc);
+            filterClass   = CsDoclet.getFilterClass(rootDoc);
+            quickfixClass = CsDoclet.getQuickfixClass(rootDoc);
         } catch (Longjump l) {
             return false;
         }
@@ -631,11 +631,9 @@ class CsDoclet {
         Html                             html
     ) throws Longjump {
 
-        // In CS 6.19, the base class is "AbstractCheck", not "Check".
-        ClassDoc checkClass = rootDoc.classNamed("com.puppycrawl.tools.checkstyle.api.AbstractCheck");
-        if (checkClass == null) checkClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Check");
+        ClassDoc checkClass = CsDoclet.getCheckClass(rootDoc);
 
-        ClassDoc filterClass = Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
+        ClassDoc filterClass = CsDoclet.getFilterClass(rootDoc);
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
         for (final ClassDoc classDoc : classDocs) {
@@ -653,7 +651,10 @@ class CsDoclet {
                 familyPlural   = "filters";
             } else
             {
-                rootDoc.printError(classDoc.position(), "Rule \"" + classDoc.qualifiedTypeName() + "\" cannot be identified as a check or a filter");
+                rootDoc.printError(
+                    classDoc.position(),
+                    "Rule \"" + classDoc.qualifiedTypeName() + "\" cannot be identified as a check or a filter"
+                );
                 continue;
             }
 
@@ -670,6 +671,49 @@ class CsDoclet {
         return rules;
     }
 
+    private static ClassDoc
+    getCheckClass(RootDoc rootDoc) throws Longjump {
+
+        // Starting with CS 6.19, the base class is "AbstractCheck", not "Check".
+        return CsDoclet.classNamed(
+            rootDoc,
+            "com.puppycrawl.tools.checkstyle.api.AbstractCheck",
+            "com.puppycrawl.tools.checkstyle.api.Check"
+        );
+    }
+
+    private static ClassDoc
+    getFilterClass(RootDoc rootDoc) throws Longjump {
+        return Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
+    }
+
+    private static ClassDoc
+    getQuickfixClass(final RootDoc rootDoc) throws Longjump {
+        return Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+    }
+
+    private static ClassDoc
+    getIOptionProviderClass(RootDoc rootDoc) throws Longjump {
+        return Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider");
+    }
+
+    private static ClassDoc
+    classNamed(RootDoc rootDoc, String... classNames) throws Longjump {
+
+        for (String cn : classNames) {
+            ClassDoc result = rootDoc.classNamed(cn);
+            if (result != null) return result;
+        }
+
+        if (classNames.length == 1) {
+            rootDoc.printError("All of " + Arrays.toString(classNames) + " are missing on classpath");
+        } else {
+            rootDoc.printError("\"" + classNames[0] + "\" missing on classpath");
+        }
+
+        throw new Longjump();
+    }
+
     /**
      * Derives a collection of quickfixes from the given {@code classDocs}.
      */
@@ -677,7 +721,7 @@ class CsDoclet {
     quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
 
         ClassDoc
-        quickfixInterface = Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+        quickfixInterface = CsDoclet.getQuickfixClass(rootDoc);
 
         List<Quickfix> quickfixes = new ArrayList<Quickfix>();
         for (final ClassDoc classDoc : classDocs) {
@@ -1066,7 +1110,7 @@ class CsDoclet {
                     }
                     valueOptions2 = tmp2.toArray(new ValueOption[0]);
                 } else
-                if (opc.subclassOf(Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider"))) {
+                if (opc.subclassOf(CsDoclet.getIOptionProviderClass(rootDoc))) {
 
                     // Property
                     Class<?> opc2 = Types.loadType(methodDoc.position(), opc, rootDoc);
