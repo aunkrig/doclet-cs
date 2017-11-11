@@ -780,7 +780,6 @@ class CsDoclet {
         Html                             html
     ) throws Longjump {
 
-        // CHECKSTYLE LineLength:OFF
         final String     group            = Annotations.getElementValue(ruleAnnotation, "group", String.class);
         final String     groupName        = Annotations.getElementValue(ruleAnnotation, "groupName", String.class);
         final String     simpleName       = classDoc.simpleTypeName();
@@ -791,7 +790,6 @@ class CsDoclet {
         final String     longDescription  = html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
         final ClassDoc[] quickfixClasses  = Annotations.getElementValue(ruleAnnotation, "quickfixes", ClassDoc[].class);
         final Boolean    hasSeverity      = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
-        // CHECKSTYLE LineLength:ON
 
         assert group     != null;
         assert groupName != null;

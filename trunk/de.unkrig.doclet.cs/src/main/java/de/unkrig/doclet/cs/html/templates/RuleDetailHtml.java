@@ -24,6 +24,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// SUPPRESS CHECKSTYLE WrapMethod:9999
+
 package de.unkrig.doclet.cs.html.templates;
 
 import java.util.ArrayList;
