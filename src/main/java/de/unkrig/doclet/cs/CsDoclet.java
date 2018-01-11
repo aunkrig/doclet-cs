@@ -215,11 +215,11 @@ class CsDoclet {
             );
         }
 
-        ClassDoc checkClass, filterClass, quickfixClass;
+        ClassDoc[] checkClasses, filterClasses, quickfixClasses;
         try {
-            checkClass    = CsDoclet.getCheckClass(rootDoc);
-            filterClass   = CsDoclet.getFilterClass(rootDoc);
-            quickfixClass = CsDoclet.getQuickfixClass(rootDoc);
+            checkClasses    = CsDoclet.getCheckClasses(rootDoc);
+            filterClasses   = CsDoclet.getFilterClasses(rootDoc);
+            quickfixClasses = CsDoclet.getQuickfixClasses(rootDoc);
         } catch (Longjump l) {
             return false;
         }
@@ -237,15 +237,15 @@ class CsDoclet {
                     }
                     ClassDoc cd = (ClassDoc) to;
 
-                    if (Docs.isSubclassOf(cd, checkClass)) {
+                    if (CsDoclet.isSubclassOfAnyOf(cd, checkClasses)) {
                         href = "checks/"     + cd.simpleTypeName() + ".html";
                         break HREF;
                     }
-                    if (Docs.isSubclassOf(cd, filterClass)) {
+                    if (CsDoclet.isSubclassOfAnyOf(cd, filterClasses)) {
                         href = "filters/"    + cd.simpleTypeName() + ".html";
                         break HREF;
                     }
-                    if (Docs.isSubclassOf(cd, quickfixClass)) {
+                    if (CsDoclet.isSubclassOfAnyOf(cd, quickfixClasses)) {
                         href = "quickfixes/" + cd.simpleTypeName() + ".html";
                         break HREF;
                     }
@@ -352,6 +352,16 @@ class CsDoclet {
         }
 
         return true;
+    }
+
+    protected static boolean
+    isSubclassOfAnyOf(ClassDoc subject, ClassDoc[] baseClasses) {
+
+        for (ClassDoc bc : baseClasses) {
+            if (Docs.isSubclassOf(subject, bc)) return true;
+        }
+
+        return false;
     }
 
     /**
@@ -631,9 +641,8 @@ class CsDoclet {
         Html                             html
     ) throws Longjump {
 
-        ClassDoc checkClass = CsDoclet.getCheckClass(rootDoc);
-
-        ClassDoc filterClass = CsDoclet.getFilterClass(rootDoc);
+        ClassDoc[] checkClasses  = CsDoclet.getCheckClasses(rootDoc);
+        ClassDoc[] filterClasses = CsDoclet.getFilterClasses(rootDoc);
 
         List<Rule> rules = new ArrayList<CsDoclet.Rule>();
         for (final ClassDoc classDoc : classDocs) {
@@ -642,11 +651,11 @@ class CsDoclet {
             if (ra == null) continue;
 
             String familySingular, familyPlural;
-            if (Docs.isSubclassOf(classDoc, checkClass)) {
+            if (CsDoclet.isSubclassOfAnyOf(classDoc, checkClasses)) {
                 familySingular = "check";
                 familyPlural   = "checks";
             } else
-            if (Docs.isSubclassOf(classDoc, filterClass)) {
+            if (CsDoclet.isSubclassOfAnyOf(classDoc, filterClasses)) {
                 familySingular = "filter";
                 familyPlural   = "filters";
             } else
@@ -671,25 +680,32 @@ class CsDoclet {
         return rules;
     }
 
-    private static ClassDoc
-    getCheckClass(RootDoc rootDoc) throws Longjump {
+    private static ClassDoc[]
+    getCheckClasses(RootDoc rootDoc) throws Longjump {
 
-        // Starting with CS 6.19, the base class is "AbstractCheck", not "Check".
-        return CsDoclet.classNamed(
+        return CsDoclet.classesNamed(
             rootDoc,
-            "com.puppycrawl.tools.checkstyle.api.AbstractCheck",
+            "com.puppycrawl.tools.checkstyle.api.AbstractCheck", // <= Supersedes "Check" since CS 6.19
             "com.puppycrawl.tools.checkstyle.api.Check"
         );
     }
 
-    private static ClassDoc
-    getFilterClass(RootDoc rootDoc) throws Longjump {
-        return Docs.classNamed(rootDoc, "com.puppycrawl.tools.checkstyle.api.Filter");
+    private static ClassDoc[]
+    getFilterClasses(RootDoc rootDoc) throws Longjump {
+
+        return CsDoclet.classesNamed(
+            rootDoc,
+            "com.puppycrawl.tools.checkstyle.TreeWalkerFilter", // <= Since CS 8.2
+            "com.puppycrawl.tools.checkstyle.api.Filter"
+        );
     }
 
-    private static ClassDoc
-    getQuickfixClass(final RootDoc rootDoc) throws Longjump {
-        return Docs.classNamed(rootDoc, "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution");
+    private static ClassDoc[]
+    getQuickfixClasses(final RootDoc rootDoc) throws Longjump {
+        return CsDoclet.classesNamed(
+            rootDoc,
+            "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution"
+        );
     }
 
     private static ClassDoc
@@ -697,21 +713,26 @@ class CsDoclet {
         return Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider");
     }
 
-    private static ClassDoc
-    classNamed(RootDoc rootDoc, String... classNames) throws Longjump {
+    private static ClassDoc[]
+    classesNamed(RootDoc rootDoc, String... classNames) throws Longjump {
+
+        List<ClassDoc> result = new ArrayList<>();
 
         for (String cn : classNames) {
-            ClassDoc result = rootDoc.classNamed(cn);
-            if (result != null) return result;
+            ClassDoc cd = rootDoc.classNamed(cn);
+            if (cd != null) result.add(cd);
         }
 
-        if (classNames.length == 1) {
-            rootDoc.printError("All of " + Arrays.toString(classNames) + " are missing on classpath");
-        } else {
-            rootDoc.printError("\"" + classNames[0] + "\" missing on classpath");
+        if (result.isEmpty()) {
+            if (classNames.length != 1) {
+                rootDoc.printError("All of " + Arrays.toString(classNames) + " are missing on classpath");
+            } else {
+                rootDoc.printError("\"" + classNames[0] + "\" missing on classpath");
+            }
+            throw new Longjump();
         }
 
-        throw new Longjump();
+        return result.toArray(new ClassDoc[result.size()]);
     }
 
     /**
@@ -720,13 +741,13 @@ class CsDoclet {
     public static Collection<Quickfix>
     quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
 
-        ClassDoc
-        quickfixInterface = CsDoclet.getQuickfixClass(rootDoc);
+        ClassDoc[]
+        quickfixInterfaces = CsDoclet.getQuickfixClasses(rootDoc);
 
         List<Quickfix> quickfixes = new ArrayList<Quickfix>();
         for (final ClassDoc classDoc : classDocs) {
 
-            if (!Docs.isSubclassOf(classDoc, quickfixInterface)) continue;
+            if (!CsDoclet.isSubclassOfAnyOf(classDoc, quickfixInterfaces)) continue;
 
             if (classDoc.isAbstract()) continue;
 
