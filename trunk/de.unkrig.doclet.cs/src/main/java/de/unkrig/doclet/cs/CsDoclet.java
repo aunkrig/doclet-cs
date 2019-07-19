@@ -1089,18 +1089,18 @@ class CsDoclet {
                     List<ValueOption> tmp = new ArrayList<CsDoclet.ValueOption>();
                     for (String ev : valueOptions) {
                         tmp.add(new ValueOption() {
-                            @Override public String           name()             { return ev; }
+                            @Override public String           name()             { return ev;   }
                             @Override @Nullable public String shortDescription() { return null; }
                             @Override @Nullable public String longDescription()  { return null; }
                         });
                     }
                     final ValueOption[] valueOptions2 = tmp.toArray(new ValueOption[tmp.size()]);
                     optionProvider = new OptionProvider() {
-                        @Override @Nullable public String name()             { return null; }
-                        @Override @Nullable public String className()        { return null; }
+                        @Override @Nullable public String name()             { return null;          }
+                        @Override @Nullable public String className()        { return null;          }
                         @Override public ValueOption[]    valueOptions()     { return valueOptions2; }
-                        @Override @Nullable public String shortDescription() { return null; }
-                        @Override @Nullable public String longDescription()  { return null; }
+                        @Override @Nullable public String shortDescription() { return null;          }
+                        @Override @Nullable public String longDescription()  { return null;          }
                     };
                 }
             } else {
@@ -1146,7 +1146,7 @@ class CsDoclet {
                     List<ValueOption> tmp3 = new ArrayList<CsDoclet.ValueOption>();
                     for (final String von : tmp2) {
                         tmp3.add(new ValueOption() {
-                            @Override public String           name()             { return von; }
+                            @Override public String           name()             { return von;  }
                             @Override @Nullable public String shortDescription() { return null; }
                             @Override @Nullable public String longDescription()  { return null; }
                         });
