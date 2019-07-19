@@ -972,7 +972,7 @@ class CsDoclet {
         @Nullable String longDescription();
 
         /**
-         * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@link
+         * @return The "value options" as defined by the {@code optionProvider=} ENUM or {@code
          *         net.sf.eclipsecs.core.config.meta.IOptionProvider}, or by {@code valueOptions=...}
          */
         ValueOption[] valueOptions();
@@ -995,7 +995,7 @@ class CsDoclet {
     }
 
     /**
-     * @param usedOptionProviders Consumers any option provider (ENUM type or {@link
+     * @param usedOptionProviders Consumers any option provider (ENUM type or {@code
      *                            net.sf.eclipsecs.core.config.meta.IOptionProvider} needed by the properties
      */
     public static Collection<RuleProperty>
