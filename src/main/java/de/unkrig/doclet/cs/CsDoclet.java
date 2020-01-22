@@ -215,14 +215,9 @@ class CsDoclet {
             );
         }
 
-        ClassDoc[] checkClasses, filterClasses, quickfixClasses;
-        try {
-            checkClasses    = CsDoclet.getCheckClasses(rootDoc);
-            filterClasses   = CsDoclet.getFilterClasses(rootDoc);
-            quickfixClasses = CsDoclet.getQuickfixClasses(rootDoc);
-        } catch (Longjump l) {
-            return false;
-        }
+        ClassDoc[] checkClasses    = CsDoclet.getCheckClasses(rootDoc);
+        ClassDoc[] filterClasses   = CsDoclet.getFilterClasses(rootDoc);
+        ClassDoc[] quickfixClasses = CsDoclet.getQuickfixClasses(rootDoc);
 
         Html html = new Html(new Html.ExternalJavadocsLinkMaker(externalJavadocs, new LinkMaker() {
 
@@ -281,69 +276,63 @@ class CsDoclet {
                 }
             }
 
-            try {
-                final Collection<Rule> rulesInPackage = CsDoclet.rules(
-                    classDocs.values(),
-                    rootDoc,
-                    ConsumerUtil.addToCollection(allOptionProviders),
-                    html
-                );
+            final Collection<Rule> rulesInPackage = CsDoclet.rules(
+                classDocs.values(),
+                rootDoc,
+                ConsumerUtil.addToCollection(allOptionProviders),
+                html
+            );
 
-                if (!rulesInPackage.isEmpty()) {
+            if (!rulesInPackage.isEmpty()) {
 
-                    allRules.addAll(rulesInPackage);
+                allRules.addAll(rulesInPackage);
 
-                    // Generate 'checkstyle-metadata.properties' for the package.
-                    if (checkstyleMetadataDotPropertiesDir != null) {
+                // Generate 'checkstyle-metadata.properties' for the package.
+                if (checkstyleMetadataDotPropertiesDir != null) {
 
-                        CsDoclet.printToFile(
-                            new File(new File(
-                                checkstyleMetadataDotPropertiesDir,
-                                checkstylePackage.replace('.', File.separatorChar)
-                            ), "checkstyle-metadata.properties"),
-                            Charset.forName("ISO-8859-1"),
-                            pw -> {
-                                CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
-                            }
-                        );
-                    }
-
-                    // Generate 'checkstyle-metadata.xml' for the package.
-                    if (checkstyleMetadataDotPropertiesDir != null) {
-
-                        CsDoclet.printToFile(
-                            new File(new File(
-                                checkstyleMetadataDotPropertiesDir,
-                                checkstylePackage.replace('.', File.separatorChar)
-                            ), "checkstyle-metadata.xml"),
-                            Charset.forName("UTF-8"),
-                            pw -> {
-                                CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
-                            }
-                        );
-                    }
-
-                    // Generate 'messages.properties' for the package.
-                    if (messagesDotPropertiesDir != null) {
-                        CsDoclet.printToFile(
-                            new File(new File(
-                                checkstyleMetadataDotPropertiesDir,
-                                checkstylePackage.replace('.', File.separatorChar)
-                            ), "messages.properties"),
-                            Charset.forName("ISO-8859-1"),
-                            pw -> {
-                                MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
-                            }
-                        );
-                    }
+                    CsDoclet.printToFile(
+                        new File(new File(
+                            checkstyleMetadataDotPropertiesDir,
+                            checkstylePackage.replace('.', File.separatorChar)
+                        ), "checkstyle-metadata.properties"),
+                        Charset.forName("ISO-8859-1"),
+                        pw -> {
+                            CheckstyleMetadataDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
+                        }
+                    );
                 }
-            } catch (Longjump l) {}
 
-            final Collection<Quickfix> quickfixesInPackage;
-            try {
-                quickfixesInPackage = CsDoclet.quickfixes(classDocs.values(), rootDoc, html);
-                allQuickfixes.addAll(quickfixesInPackage);
-            } catch (Longjump l) {}
+                // Generate 'checkstyle-metadata.xml' for the package.
+                if (checkstyleMetadataDotPropertiesDir != null) {
+
+                    CsDoclet.printToFile(
+                        new File(new File(
+                            checkstyleMetadataDotPropertiesDir,
+                            checkstylePackage.replace('.', File.separatorChar)
+                        ), "checkstyle-metadata.xml"),
+                        Charset.forName("UTF-8"),
+                        pw -> {
+                            CheckstyleMetadataDotXmlGenerator.generate(rulesInPackage, pw, rootDoc);
+                        }
+                    );
+                }
+
+                // Generate 'messages.properties' for the package.
+                if (messagesDotPropertiesDir != null) {
+                    CsDoclet.printToFile(
+                        new File(new File(
+                            checkstyleMetadataDotPropertiesDir,
+                            checkstylePackage.replace('.', File.separatorChar)
+                        ), "messages.properties"),
+                        Charset.forName("ISO-8859-1"),
+                        pw -> {
+                            MessagesDotPropertiesGenerator.generate(rulesInPackage, pw, rootDoc);
+                        }
+                    );
+                }
+            }
+
+            allQuickfixes.addAll(CsDoclet.quickfixes(classDocs.values(), rootDoc, html));
         }
 
         // Generate HTML (JAVADOCish) documentation.
@@ -619,7 +608,7 @@ class CsDoclet {
         Collection<RuleProperty> properties();
 
         /** @return The quickfixes which are related to this rule */
-        @Nullable ClassDoc[] quickfixClasses();
+        @Nullable String[] quickfixClassNames();
 
         /** @return Whether this rule has a severity; typically checks do, and filters don't */
         @Nullable Boolean hasSeverity();
@@ -639,7 +628,7 @@ class CsDoclet {
         RootDoc                          rootDoc,
         Consumer<? super OptionProvider> usedOptionProviders,
         Html                             html
-    ) throws Longjump {
+    ) {
 
         ClassDoc[] checkClasses  = CsDoclet.getCheckClasses(rootDoc);
         ClassDoc[] filterClasses = CsDoclet.getFilterClasses(rootDoc);
@@ -681,7 +670,7 @@ class CsDoclet {
     }
 
     private static ClassDoc[]
-    getCheckClasses(RootDoc rootDoc) throws Longjump {
+    getCheckClasses(RootDoc rootDoc) {
 
         return CsDoclet.classesNamed(
             rootDoc,
@@ -691,7 +680,7 @@ class CsDoclet {
     }
 
     private static ClassDoc[]
-    getFilterClasses(RootDoc rootDoc) throws Longjump {
+    getFilterClasses(RootDoc rootDoc) {
 
         return CsDoclet.classesNamed(
             rootDoc,
@@ -701,7 +690,7 @@ class CsDoclet {
     }
 
     private static ClassDoc[]
-    getQuickfixClasses(final RootDoc rootDoc) throws Longjump {
+    getQuickfixClasses(final RootDoc rootDoc) {
         return CsDoclet.classesNamed(
             rootDoc,
             "net.sf.eclipsecs.ui.quickfixes.ICheckstyleMarkerResolution"
@@ -713,8 +702,11 @@ class CsDoclet {
         return Docs.classNamed(rootDoc, "net.sf.eclipsecs.core.config.meta.IOptionProvider");
     }
 
+    /**
+     * @return Classes that that have one of the <var>classNames</var> (may be empty)
+     */
     private static ClassDoc[]
-    classesNamed(RootDoc rootDoc, String... classNames) throws Longjump {
+    classesNamed(RootDoc rootDoc, String... classNames) {
 
         List<ClassDoc> result = new ArrayList<>();
 
@@ -723,14 +715,9 @@ class CsDoclet {
             if (cd != null) result.add(cd);
         }
 
-        if (result.isEmpty()) {
-            if (classNames.length != 1) {
-                rootDoc.printError("All of " + Arrays.toString(classNames) + " are missing on classpath");
-            } else {
-                rootDoc.printError("\"" + classNames[0] + "\" missing on classpath");
-            }
-            throw new Longjump();
-        }
+        // Notice that "RootDoc.classNamed()" finds only classes that are in one of the configured packages, or were
+        // implicitly loaded through the "-classpath". Classes that areon the "-classpath", but are not referenced
+        // by other classes are NOT found! So we DO NOT check for "result.isEmpty()" here.
 
         return result.toArray(new ClassDoc[result.size()]);
     }
@@ -739,7 +726,7 @@ class CsDoclet {
      * Derives a collection of quickfixes from the given {@code classDocs}.
      */
     public static Collection<Quickfix>
-    quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) throws Longjump {
+    quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) {
 
         ClassDoc[]
         quickfixInterfaces = CsDoclet.getQuickfixClasses(rootDoc);
@@ -801,16 +788,16 @@ class CsDoclet {
         Html                             html
     ) throws Longjump {
 
-        final String     group            = Annotations.getElementValue(ruleAnnotation, "group", String.class);
-        final String     groupName        = Annotations.getElementValue(ruleAnnotation, "groupName", String.class);
-        final String     simpleName       = classDoc.simpleTypeName();
-        final String     name             = Annotations.getElementValue(ruleAnnotation, "name", String.class);
-        final String     internalName     = classDoc.qualifiedTypeName();
-        final String     parent           = Annotations.getElementValue(ruleAnnotation, "parent", String.class);
-        final String     shortDescription = html.fromTags(classDoc.firstSentenceTags(), classDoc, rootDoc);
-        final String     longDescription  = html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
-        final ClassDoc[] quickfixClasses  = Annotations.getElementValue(ruleAnnotation, "quickfixes", ClassDoc[].class);
-        final Boolean    hasSeverity      = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
+        final String   group              = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
+        final String   groupName          = Annotations.getElementValue(ruleAnnotation, "groupName",    String.class);
+        final String   simpleName         = classDoc.simpleTypeName();
+        final String   name               = Annotations.getElementValue(ruleAnnotation, "name",         String.class);
+        final String   internalName       = classDoc.qualifiedTypeName();
+        final String   parent             = Annotations.getElementValue(ruleAnnotation, "parent",       String.class);
+        final String   shortDescription   = html.fromTags(classDoc.firstSentenceTags(), classDoc, rootDoc);
+        final String   longDescription    = html.fromTags(classDoc.inlineTags(), classDoc, rootDoc);
+        final String[] quickfixClassNames = Annotations.getElementValue(ruleAnnotation, "quickfixes",   String[].class);
+        final Boolean  hasSeverity        = Annotations.getElementValue(ruleAnnotation, "hasSeverity",  Boolean.class);
 
         assert group     != null;
         assert groupName != null;
@@ -871,21 +858,21 @@ class CsDoclet {
         }
 
         return new Rule() {
-            @Override public Doc                       ref()               { return classDoc;         }
-            @Override public String                    familySingular()    { return familySingular;   }
-            @Override public String                    familyPlural()      { return familyPlural;     }
-            @Override public String                    group()             { return group;            }
-            @Override public String                    groupName()         { return groupName;        }
-            @Override public String                    simpleName()        { return simpleName;       }
-            @Override public String                    name()              { return name;             }
-            @Override public String                    internalName()      { return internalName;     }
-            @Override public String                    parent()            { return parent;           }
-            @Override public String                    shortDescription()  { return shortDescription; }
-            @Override public String                    longDescription()   { return longDescription;  }
-            @Override public Collection<RuleProperty>  properties()        { return properties;       }
-            @Override @Nullable public ClassDoc[]      quickfixClasses()   { return quickfixClasses;  }
-            @Override @Nullable public Boolean         hasSeverity()       { return hasSeverity;      }
-            @Override public SortedMap<String, String> messages()          { return messages;         }
+            @Override public Doc                       ref()                { return classDoc;           }
+            @Override public String                    familySingular()     { return familySingular;     }
+            @Override public String                    familyPlural()       { return familyPlural;       }
+            @Override public String                    group()              { return group;              }
+            @Override public String                    groupName()          { return groupName;          }
+            @Override public String                    simpleName()         { return simpleName;         }
+            @Override public String                    name()               { return name;               }
+            @Override public String                    internalName()       { return internalName;       }
+            @Override public String                    parent()             { return parent;             }
+            @Override public String                    shortDescription()   { return shortDescription;   }
+            @Override public String                    longDescription()    { return longDescription;    }
+            @Override public Collection<RuleProperty>  properties()         { return properties;         }
+            @Override @Nullable public String[]        quickfixClassNames() { return quickfixClassNames; }
+            @Override @Nullable public Boolean         hasSeverity()        { return hasSeverity;        }
+            @Override public SortedMap<String, String> messages()           { return messages;           }
         };
     }
 

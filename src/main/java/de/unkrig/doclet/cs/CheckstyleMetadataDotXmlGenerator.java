@@ -29,7 +29,6 @@ package de.unkrig.doclet.cs;
 import java.io.PrintWriter;
 import java.util.Collection;
 
-import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.text.Notations;
@@ -128,11 +127,11 @@ class CheckstyleMetadataDotXmlGenerator {
                 pw.printf("            </property-metadata>%n");
             }
 
-            ClassDoc[] quickfixClasses = rule.quickfixClasses();
-            if (quickfixClasses != null && quickfixClasses.length > 0) {
+            String[] quickfixClassNames = rule.quickfixClassNames();
+            if (quickfixClassNames != null && quickfixClassNames.length > 0) {
                 pw.printf("%n");
-                for (ClassDoc quickfixClass : quickfixClasses) {
-                    pw.printf("            <quickfix classname=\"%s\" />%n", quickfixClass.qualifiedName());
+                for (String quickfixClassName : quickfixClassNames) {
+                    pw.printf("            <quickfix classname=\"%s\" />%n", quickfixClassName);
                 }
             }
 
