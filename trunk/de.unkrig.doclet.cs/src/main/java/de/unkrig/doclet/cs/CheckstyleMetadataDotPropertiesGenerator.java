@@ -119,13 +119,23 @@ class CheckstyleMetadataDotPropertiesGenerator {
                     + "%1$s.desc =\\%n"
                 ), rule.simpleName(), rule.name());
 
-                String     description     = rule.longDescription();
-                ClassDoc[] quickfixClasses = rule.quickfixClasses();
-                if (quickfixClasses != null && quickfixClasses.length > 0) {
+                String   description        = rule.longDescription();
+                String[] quickfixClassNames = rule.quickfixClassNames();
+                if (quickfixClassNames != null && quickfixClassNames.length > 0) {
 
                     description += String.format("%n%n<h4>Quickfixes:</h4>%n<dl>%n");
 
-                    for (ClassDoc quickfixClass : quickfixClasses) {
+                    for (String quickfixClassName : quickfixClassNames) {
+
+                    	ClassDoc quickfixClass = rootDoc.classNamed(quickfixClassName);
+                    	if (quickfixClass == null) {
+                            rootDoc.printError(rule.ref().position(), (
+                                "Please add the package where quickfix class \""
+                        		+ quickfixClassName
+                        		+ "\" lives to the JAVADOC command line"
+                            ));
+                            continue;
+                    	}
 
                         String quickfixLabel = CheckstyleMetadataDotPropertiesGenerator.html.optionalTag(
                             quickfixClass,
