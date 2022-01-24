@@ -321,7 +321,7 @@ class CsDoclet {
                 if (messagesDotPropertiesDir != null) {
                     CsDoclet.printToFile(
                         new File(new File(
-                            checkstyleMetadataDotPropertiesDir,
+                            messagesDotPropertiesDir,
                             checkstylePackage.replace('.', File.separatorChar)
                         ), "messages.properties"),
                         Charset.forName("ISO-8859-1"),
