@@ -8,7 +8,7 @@
 
 	<groupId>de.unkrig</groupId>
 	<artifactId>doclet-cs</artifactId>
-	<version>1.1.1-SNAPSHOT</version>
+	<version>1.1.1</version>
 
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
@@ -50,7 +50,7 @@
 		<dependency>
 			<groupId>de.unkrig</groupId>
 			<artifactId>doclet-cs-annotation</artifactId>
-			<version>1.0.1</version>
+			<version>1.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>de.unkrig</groupId>
@@ -158,6 +158,7 @@
 						</configuration>
 					</execution>
 
+					<!-- Generate MAINDOC, i.e. the document that is printed on command line option "-help". -->
 					<execution>
 						<id>make-maindoc</id>
 						<phase>compile</phase>
