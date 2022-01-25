@@ -53,6 +53,7 @@ import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.text.Notations;
+import de.unkrig.commons.util.CommandLineOptions;
 import de.unkrig.commons.util.collections.ElementWithContext;
 import de.unkrig.commons.util.collections.IterableUtil;
 import de.unkrig.csdoclet.annotation.BooleanRuleProperty;
@@ -99,7 +100,17 @@ class CsDoclet {
      * Overview"</a>.
      */
     public static int
-    optionLength(String option) {
+    optionLength(String option) throws IOException {
+
+        if ("-help".equals(option)) {
+            CommandLineOptions.printResource(
+                CsDoclet.class,
+                "start(RootDoc).txt",
+                Charset.forName("UTF-8"),
+                System.out
+            );
+            return 1;
+        }
 
         // Options that go into the "Options" object:
         if ("-d".equals(option))           return 2;
