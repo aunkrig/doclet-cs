@@ -48,6 +48,7 @@ import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.Comparators;
+import de.unkrig.commons.lang.ObjectUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.lang.protocol.ConsumerUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
@@ -349,7 +350,7 @@ class CsDoclet {
                 }
             }
 
-            for (Quickfix qf : CsDoclet.quickfixes(classDocs.values(), rootDoc, html)) {
+            for (Quickfix qf : CsDoclet.quickfixes(classDocs.values(), allRules, rootDoc, html)) {
                 allQuickfixes.put(qf.className(), qf);
             }
         }
@@ -761,7 +762,7 @@ class CsDoclet {
      * Derives a collection of quickfixes from the given {@code classDocs}.
      */
     public static Collection<Quickfix>
-    quickfixes(final Collection<ClassDoc> classDocs, RootDoc rootDoc, Html html) {
+    quickfixes(final Collection<ClassDoc> classDocs, Collection<Rule> allRules, RootDoc rootDoc, Html html) {
 
         ClassDoc[]
         quickfixInterfaces = CsDoclet.getQuickfixClasses(rootDoc);
@@ -775,11 +776,11 @@ class CsDoclet {
 
             try {
 
-                final String
-                className = classDoc.qualifiedTypeName();
+                String s = html.optionalTag(classDoc, "@cs-label", rootDoc);
 
-                String       s             = html.optionalTag(classDoc, "@cs-label", rootDoc);
+                final String className     = classDoc.qualifiedTypeName();
                 final String quickfixLabel = s != null ? s : classDoc.qualifiedTypeName();
+                final String simpleName    = classDoc.simpleTypeName();
 
                 final String
                 quickfixShortDescription = html.fromTags(
@@ -799,13 +800,35 @@ class CsDoclet {
                     @Override public Doc              ref()              { return classDoc;                 }
                     @Override @Nullable public String className()        { return className;                }
                     @Override public String           label()            { return quickfixLabel;            }
+                    @Override public String           simpleName()       { return simpleName;               }
                     @Override public String           shortDescription() { return quickfixShortDescription; }
                     @Override public String           longDescription()  { return quickfixLongDescription;  }
+
+                    @Override @Nullable public Rule[]
+                    rules() {
+
+                        // Compute the set of checks lazily here, because the "allRules" map is not complete initially.
+
+                        List<Rule> tmp = new ArrayList<Rule>();
+                        for (Rule rule : allRules) {
+                            Quickfix[] qfs = rule.quickfixes();
+                            if (qfs != null && CsDoclet.arrayContains(qfs, this)) tmp.add(rule);
+                        }
+                        return tmp.toArray(new Rule[tmp.size()]);
+                    }
                 });
             } catch (Longjump l) {}
         }
 
         return quickfixes;
+    }
+
+    public static <T> boolean
+    arrayContains(T[] haystack, T needle) {
+        for (int i = 0; i < haystack.length; i++) {
+            if (ObjectUtil.equals(haystack[i], needle)) return true;
+        }
+        return false;
     }
 
     /**
@@ -986,13 +1009,18 @@ class CsDoclet {
         @Nullable String className();
 
         /** @return The "label" of the quickfix, as given in the "{@code @cs-label}" block tag */
-        @Nullable String label();
+        String label();
+
+        String simpleName();
 
         /** @return The first sentence of the description of; may contain HTML markup */
         String shortDescription();
 
         /** @return The verbose description; may contain HTML markup */
         String longDescription();
+
+        /** @return The rules which offer this quickfix */
+        @Nullable Rule[] rules();
     }
 
     /** Representation of an "option provider". */

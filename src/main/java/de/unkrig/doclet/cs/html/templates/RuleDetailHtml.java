@@ -80,7 +80,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
 
         // Index entry for rule.
         {
-            String ruleLink = rule.familyPlural() + "/" + rule.ref().name().replace('.', '/');
+            String ruleLink = rule.familyPlural() + "/" + rule.simpleName() + ".html";
             indexEntries.consume(IndexPages.indexEntry(
                 rule.name(),            // key
                 ruleLink,               // link
@@ -289,7 +289,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
                             link = html.makeLink(
                                 rule.ref(), // from
                                 qf.ref(),   // to
-                                false,      // plain
+                                true,       // plain
                                 qf.label(), // label
                                 null,       // target
                                 rootDoc
@@ -306,6 +306,7 @@ class RuleDetailHtml extends AbstractDetailHtml {
 "          </dl>"
                     );
                 }
+
                 RuleDetailHtml.this.l(
 "      </div>"
                 );

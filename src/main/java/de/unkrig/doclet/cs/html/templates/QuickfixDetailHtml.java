@@ -35,8 +35,11 @@ import com.sun.javadoc.RootDoc;
 import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
+import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.util.collections.ElementWithContext;
 import de.unkrig.doclet.cs.CsDoclet.Quickfix;
+import de.unkrig.doclet.cs.CsDoclet.Rule;
+import de.unkrig.notemplate.javadocish.IndexPages;
 import de.unkrig.notemplate.javadocish.IndexPages.IndexEntry;
 import de.unkrig.notemplate.javadocish.Options;
 import de.unkrig.notemplate.javadocish.templates.AbstractDetailHtml;
@@ -66,21 +69,51 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
         Quickfix quickfix         = quickfixTriplet.current();
         Quickfix nextQuickfix     = quickfixTriplet.next();
 
+        // Index entry for the quickfix.
+        {
+            String ruleLink = "quickfixes/" + quickfix.simpleName() + ".html";
+            indexEntries.consume(IndexPages.indexEntry(
+                quickfix.label(),           // key
+                ruleLink,                   // link
+                "Quickfix",                 // explanation
+                quickfix.shortDescription() // shortDescription
+            ));
+        }
+
+        String previousQuickfixLink = "Prev Quickfix";
+        if (previousQuickfix != null) {
+            previousQuickfixLink = (
+                "<a href=\""
+                + previousQuickfix.simpleName()
+                + ".html\"><span class=\"typeNameLink\">"
+                + previousQuickfixLink
+                + "</span></a>"
+            );
+        }
+
+        String nextQuickfixLink = "Next Quickfix";
+        if (nextQuickfix != null) {
+            nextQuickfixLink = (
+                "<a href=\""
+                + nextQuickfix.simpleName()
+                + ".html\"><span class=\"typeNameLink\">"
+                + nextQuickfixLink
+                + "</span></a>"
+            );
+        }
+
         super.rDetail(
             "Quickfix " + quickfix.label(),                             // windowTitle
             options,                                                    // options
             new String[] { "../stylesheet.css", "../stylesheet2.css" }, // stylesheetLinks
             new String[] {                                              // nav1
                 "Overview",   "../overview-summary.html",
-                "QUickfix",   AbstractRightFrameHtml.HIGHLIT,
+                "Quickfix",   AbstractRightFrameHtml.HIGHLIT,
                 "Deprecated", "../deprecated-list.html",
                 "Index",      "../" + (options.splitIndex ? "index-files/index-1.html" : "index-all.html"),
                 "Help",       "../help-doc.html",
             },
-            new String[] {                                              // nav2
-                previousQuickfix == null ? "Prev Quickfix" : "<a href=\"\">Prev Quickfix</a>",
-                nextQuickfix     == null ? "Next Quickfix" : "<a href=\"\">Next Quickfix</a>",
-            },
+            new String[] { previousQuickfixLink, nextQuickfixLink },    // nav2
             new String[] {                                              // nav3
                 "Frames",    "../index.html?quickfixes/" + quickfix.label() + ".html",
                 "No Frames", "#top",
@@ -93,9 +126,41 @@ class QuickfixDetailHtml extends AbstractDetailHtml {
             "Quickfix \"" + quickfix.label() + "\"",                    // headingTitle
             () -> {                                                     // prolog
                 QuickfixDetailHtml.this.l(
-"      <div class=\"description\">"
+"      <div class=\"description\">",
+"        " + quickfix.longDescription()
                 );
-                this.l(quickfix.longDescription());
+
+                // Render a list of related Checks.
+                Rule[] rules = quickfix.rules();
+                if (rules != null && rules.length > 0) {
+                    this.l(
+"        <h3>Checks offering this quickfixes:</h3>",
+"          <dl>"
+                    );
+                    for (Rule rule : rules) {
+                        String link;
+                        try {
+                            link = html.makeLink(
+                                quickfix.ref(), // from
+                                rule.ref(),     // to
+                                true,           // plain
+                                rule.name(),    // label
+                                null,           // target
+                                rootDoc
+                            );
+                        } catch (Longjump l) {
+                            link = rule.name();
+                        }
+                        this.l(
+"            <dt>" + link + "</dt>",
+"            <dd>" + rule.shortDescription() + "</dd>"
+                        );
+                    }
+                    this.l(
+"          </dl>"
+                    );
+                }
+
                 QuickfixDetailHtml.this.l(
 "      </div>"
                 );
