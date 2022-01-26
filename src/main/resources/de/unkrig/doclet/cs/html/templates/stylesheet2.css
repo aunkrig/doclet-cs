@@ -1,0 +1,45 @@
+
+.contentContainer .description li {
+    padding-top:      4px;
+    padding-bottom:   4px;
+}
+
+/*
+ * For unknown reasons, the JAVA 8 JAVADOC stylesheet defines a monospace font for the DDs, which is definitely not
+ * what we want.
+ */
+.contentContainer .description dl dt {
+    color:            #4E4E4E;
+    font-size:        14px;
+    font-weight:      bold;
+}
+.contentContainer .details dl dt {
+	margin:           3px 10px 6px 10px;
+}
+.contentContainer .description dl dd {
+	margin:           3px 10px 6px 20px;
+    font-family:      inherit;
+}
+.contentContainer .details dl dd {
+	margin:           3px 10px 6px 20px;
+    font-family:      inherit;
+}
+
+code code {
+    font-size:        1em;
+}
+
+/*
+ * h5 and h6 are used inside the subelements' details.
+ */
+.details h5 {
+    font-size:        14px;
+	margin-bottom:    0px;
+}
+
+.details h6 {
+    font-size:        13px;
+    font-style:       italic;
+	margin-top:       20px;
+	margin-bottom:    8px;
+}

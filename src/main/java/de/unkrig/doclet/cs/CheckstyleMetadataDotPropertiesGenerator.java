@@ -35,11 +35,9 @@ import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.RootDoc;
 
-import de.unkrig.commons.doclet.html.Html;
-import de.unkrig.commons.lang.protocol.Longjump;
+import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
 
@@ -50,8 +48,6 @@ import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
  */
 public final
 class CheckstyleMetadataDotPropertiesGenerator {
-
-    private static Html html = new Html(Html.STANDARD_LINK_MAKER);
 
     private CheckstyleMetadataDotPropertiesGenerator() {}
 
@@ -108,81 +104,52 @@ class CheckstyleMetadataDotPropertiesGenerator {
 
         for (Rule rule : rules) {
 
-            try {
+            pw.printf((
+                ""
+                + "%n"
+                + "# --------------- %2$s ---------------%n"
+                + "%n"
+                + "%1$s.name = %2$s%n"
+                + "%1$s.desc =\\%n"
+            ), rule.simpleName(), rule.name());
 
-                pw.printf((
-                    ""
-                    + "%n"
-                    + "# --------------- %2$s ---------------%n"
-                    + "%n"
-                    + "%1$s.name = %2$s%n"
-                    + "%1$s.desc =\\%n"
-                ), rule.simpleName(), rule.name());
+            String description = rule.longDescription();
 
-                String   description        = rule.longDescription();
-                String[] quickfixClassNames = rule.quickfixClassNames();
-                if (quickfixClassNames != null && quickfixClassNames.length > 0) {
+            Quickfix[] qfs = rule.quickfixes();
+            if (qfs != null && qfs.length > 0) {
 
-                    description += String.format("%n%n<h4>Quickfixes:</h4>%n<dl>%n");
+                description += String.format("%n%n<h4>Quickfixes:</h4>%n<dl>%n");
 
-                    for (String quickfixClassName : quickfixClassNames) {
-
-                    	ClassDoc quickfixClass = rootDoc.classNamed(quickfixClassName);
-                    	if (quickfixClass == null) {
-                            rootDoc.printError(rule.ref().position(), (
-                                "Please add the package where quickfix class \""
-                        		+ quickfixClassName
-                        		+ "\" lives to the JAVADOC command line"
-                            ));
-                            continue;
-                    	}
-
-                        String quickfixLabel = CheckstyleMetadataDotPropertiesGenerator.html.optionalTag(
-                            quickfixClass,
-                            "@cs-label",
-                            rootDoc
-                        );
-                        if (quickfixLabel == null) quickfixLabel = quickfixClass.qualifiedTypeName();
-
-                        final String quickfixShortDescription = CheckstyleMetadataDotPropertiesGenerator.html.fromTags(
-                            quickfixClass.firstSentenceTags(),
-                            quickfixClass,
-                            rootDoc
-                        );
-
-                        description += String.format((
-                            ""
-                            + "  <dt>%1$s%n"
-                            + "  <dd>%2$s%n"
-                        ), quickfixLabel, quickfixShortDescription);
-                    }
-
-                    description += String.format("</dl>");
+                for (Quickfix qf : qfs) {
+                    description += String.format((
+                        ""
+                        + "  <dt>%1$s%n"
+                        + "  <dd>%2$s%n"
+                    ), qf.label(), qf.shortDescription());
                 }
 
-                // TODO What was this supposed to do?
-//                description = CheckstyleMetadataDotPropertiesGenerator.html.fromJavadocText(
-//                    description,
-//                    rule.ref(),
-//                    rootDoc
-//                );
+                description += String.format("</dl>");
+            }
 
-                CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(description, pw);
+            // TODO What was this supposed to do?
+//            description = CheckstyleMetadataDotPropertiesGenerator.html.fromJavadocText(
+//                description,
+//                rule.ref(),
+//                rootDoc
+//            );
 
-                for (RuleProperty property : rule.properties()) {
+            CheckstyleMetadataDotPropertiesGenerator.printPropertyValue(description, pw);
 
-                    String shortDescription = CsDoclet.htmlToPlainText(
-                        property.shortDescription(),
-                        property.ref().position(),
-                        rootDoc
-                    );
-                    shortDescription = shortDescription.replaceAll("\\s+", " ");
+            for (RuleProperty property : rule.properties()) {
 
-                    pw.printf("%1$-40s = %2$s%n", rule.simpleName() + '.' + property.name(), shortDescription);
-                }
+                String shortDescription = CsDoclet.htmlToPlainText(
+                    property.shortDescription(),
+                    property.ref().position(),
+                    rootDoc
+                );
+                shortDescription = shortDescription.replaceAll("\\s+", " ");
 
-            } catch (Longjump l) {
-                ;
+                pw.printf("%1$-40s = %2$s%n", rule.simpleName() + '.' + property.name(), shortDescription);
             }
         }
     }

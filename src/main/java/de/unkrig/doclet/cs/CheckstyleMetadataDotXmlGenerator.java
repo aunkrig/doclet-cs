@@ -33,6 +33,7 @@ import com.sun.javadoc.RootDoc;
 
 import de.unkrig.commons.text.Notations;
 import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
+import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
 import de.unkrig.doclet.cs.CsDoclet.ValueOption;
@@ -127,11 +128,11 @@ class CheckstyleMetadataDotXmlGenerator {
                 pw.printf("            </property-metadata>%n");
             }
 
-            String[] quickfixClassNames = rule.quickfixClassNames();
-            if (quickfixClassNames != null && quickfixClassNames.length > 0) {
+            Quickfix[] qfs = rule.quickfixes();
+            if (qfs != null && qfs.length > 0) {
                 pw.printf("%n");
-                for (String quickfixClassName : quickfixClassNames) {
-                    pw.printf("            <quickfix classname=\"%s\" />%n", quickfixClassName);
+                for (Quickfix qf : qfs) {
+                    pw.printf("            <quickfix classname=\"%s\" />%n", qf.className());
                 }
             }
 

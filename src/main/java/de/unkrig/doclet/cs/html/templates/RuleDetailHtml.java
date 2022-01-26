@@ -40,9 +40,11 @@ import de.unkrig.commons.doclet.html.Html;
 import de.unkrig.commons.lang.AssertionUtil;
 import de.unkrig.commons.lang.StringUtil;
 import de.unkrig.commons.lang.protocol.Consumer;
+import de.unkrig.commons.lang.protocol.Longjump;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.util.collections.ElementWithContext;
 import de.unkrig.doclet.cs.CsDoclet.OptionProvider;
+import de.unkrig.doclet.cs.CsDoclet.Quickfix;
 import de.unkrig.doclet.cs.CsDoclet.Rule;
 import de.unkrig.doclet.cs.CsDoclet.RuleProperty;
 import de.unkrig.doclet.cs.CsDoclet.ValueOption;
@@ -270,9 +272,40 @@ class RuleDetailHtml extends AbstractDetailHtml {
             familyCap + " \"" + rule.name() + "\"",                     // headingTitle
             () -> {                                                     // prolog
                 RuleDetailHtml.this.l(
-"      <div class=\"description\">"
+"      <div class=\"description\">",
+"        " + rule.longDescription()
                 );
-                this.l(rule.longDescription());
+
+                // Render a list of related quickfixes.
+                Quickfix[] qfs = rule.quickfixes();
+                if (qfs != null && qfs.length > 0) {
+                    this.l(
+"        <h3>Quickfixes:</h3>",
+"          <dl>"
+                    );
+                    for (Quickfix qf : qfs) {
+                        String link;
+                        try {
+                            link = html.makeLink(
+                                rule.ref(), // from
+                                qf.ref(),   // to
+                                false,      // plain
+                                qf.label(), // label
+                                null,       // target
+                                rootDoc
+                            );
+                        } catch (Longjump l) {
+                            link = qf.label();
+                        }
+                        this.l(
+"            <dt>" + link + "</dt>",
+"            <dd>" + qf.shortDescription() + "</dd>"
+                        );
+                    }
+                    this.l(
+"          </dl>"
+                    );
+                }
                 RuleDetailHtml.this.l(
 "      </div>"
                 );

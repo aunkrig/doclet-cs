@@ -145,28 +145,28 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
         }
 
         this.rSummary(
-            "Overview",                        // windowTitle
+            "Overview",                                              // windowTitle
             options,
-            new String[] { "stylesheet.css" }, // stylesheetLinks
-            new String[] {                     // nav1
+            new String[] { "stylesheet.css", "../stylesheet2.css" }, // stylesheetLinks
+            new String[] {                                           // nav1
                 "Overview",   AbstractRightFrameHtml.HIGHLIT,
                 "Check",      AbstractRightFrameHtml.DISABLED,
                 "Deprecated", "deprecated-list.html",
                 "Index",      options.splitIndex ? "index-files/index-1.html" : "index-all.html",
                 "Help",       "help-doc.html",
             },
-            new String[] {                     // nav2
+            new String[] {                                           // nav2
                 "Prev",
                 "Next",
             },
-            new String[] {                     // nav3
+            new String[] {                                           // nav3
                 "Frames",    "index.html?overview-summary.html",
                 "No Frames", "overview-summary.html",
             },
-            new String[] {                     // nav4
+            new String[] {                                           // nav4
                 "All Rules", "allclasses-noframe.html",
             },
-            new Runnable[] {                   // renderHeaders
+            new Runnable[] {                                         // renderHeaders
                 options.docTitle == null ? null : () -> {
                     this.l(
 "      <h1 class=\"title\">" + options.docTitle + "</h1>"
@@ -189,7 +189,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                     );
                 },
             },
-            () -> {                            // epilog
+            () -> {                                                  // epilog
                 this.l(
 "      <a name=\"description\" />"
                 );
@@ -199,7 +199,7 @@ class OverviewSummaryHtml extends AbstractSummaryHtml {
                     );
                 }
             },
-            sections                           // sections
+            sections                                                 // sections
         );
     }
 }

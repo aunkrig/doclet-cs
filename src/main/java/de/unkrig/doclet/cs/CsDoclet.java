@@ -47,10 +47,12 @@ import de.unkrig.commons.doclet.html.Html.Link;
 import de.unkrig.commons.doclet.html.Html.LinkMaker;
 import de.unkrig.commons.io.IoUtil;
 import de.unkrig.commons.lang.AssertionUtil;
+import de.unkrig.commons.lang.Comparators;
 import de.unkrig.commons.lang.protocol.Consumer;
 import de.unkrig.commons.lang.protocol.ConsumerUtil;
 import de.unkrig.commons.lang.protocol.ConsumerWhichThrows;
 import de.unkrig.commons.lang.protocol.Longjump;
+import de.unkrig.commons.nullanalysis.NotNullByDefault;
 import de.unkrig.commons.nullanalysis.Nullable;
 import de.unkrig.commons.text.Notations;
 import de.unkrig.commons.util.CommandLineOptions;
@@ -259,14 +261,17 @@ class CsDoclet {
                     href = null;
                 }
 
+                // If the link points from one rule/quickfix to another rule/quickfix...
+                if (href != null && from instanceof ClassDoc) href = "../" + href;
+
                 return new Link(href, to.name());
             }
         }));
 
         // Process all specified packages.
-        Collection<Rule>     allRules           = new ArrayList<Rule>();
-        Collection<Quickfix> allQuickfixes      = new ArrayList<Quickfix>();
-        Set<OptionProvider>  allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
+        Collection<Rule>                            allRules           = new ArrayList<Rule>();
+        Map<String /*quickfixClassName*/, Quickfix> allQuickfixes      = new HashMap<String, CsDoclet.Quickfix>();
+        Set<OptionProvider>                         allOptionProviders = new TreeSet<OptionProvider>(new Comparator<OptionProvider>() {
 
             @SuppressWarnings("null") @Override public int
             compare(@Nullable OptionProvider op1, @Nullable OptionProvider op2) {
@@ -290,6 +295,7 @@ class CsDoclet {
             final Collection<Rule> rulesInPackage = CsDoclet.rules(
                 classDocs.values(),
                 rootDoc,
+                allQuickfixes,
                 ConsumerUtil.addToCollection(allOptionProviders),
                 html
             );
@@ -343,12 +349,23 @@ class CsDoclet {
                 }
             }
 
-            allQuickfixes.addAll(CsDoclet.quickfixes(classDocs.values(), rootDoc, html));
+            for (Quickfix qf : CsDoclet.quickfixes(classDocs.values(), rootDoc, html)) {
+                allQuickfixes.put(qf.className(), qf);
+            }
         }
 
         // Generate HTML (JAVADOCish) documentation.
         if (generateHtml) {
-            CsDoclet.generateHtml(allRules, allQuickfixes, allOptionProviders, options, rootDoc, html);
+
+            // Sort quickfixes by label.
+            List<Quickfix> qfs = new ArrayList<>(allQuickfixes.values());
+            qfs.sort(new Comparator<Quickfix>() {
+
+                @NotNullByDefault(false) @Override public int
+                compare(Quickfix qf1, Quickfix qf2) { return Comparators.compareNullSafe(qf1.label(), qf2.label()); }
+            });
+
+            CsDoclet.generateHtml(allRules, qfs, allOptionProviders, options, rootDoc, html);
         }
 
         return true;
@@ -379,12 +396,18 @@ class CsDoclet {
     ) throws IOException {
 
         // Create "stylesheet.css".
-        IoUtil.copyResource(
-            CsDoclet.class.getClassLoader(),
-            "de/unkrig/doclet/cs/html/templates/stylesheet.css",
-            new File(options.destination, "stylesheet.css"),
-            true                                                  // createMissingParentDirectories
-        );
+        String resourceNamePrefix = "de/unkrig/doclet/cs/html/templates/";
+        for (String resourceNameSuffix : new String[] {
+            "stylesheet.css",
+            "stylesheet2.css",
+        }) {
+            IoUtil.copyResource(
+                CsDoclet.class.getClassLoader(),
+                resourceNamePrefix + resourceNameSuffix,
+                new File(options.destination, resourceNameSuffix),
+                true                                                  // createMissingParentDirectories
+            );
+        }
 
         final Collection<IndexEntry>       indexEntries       = new ArrayList<IndexEntry>();
         final Consumer<? super IndexEntry> indexEntryConsumer = ConsumerUtil.addToCollection(indexEntries);
@@ -619,7 +642,7 @@ class CsDoclet {
         Collection<RuleProperty> properties();
 
         /** @return The quickfixes which are related to this rule */
-        @Nullable String[] quickfixClassNames();
+        @Nullable Quickfix[] quickfixes();
 
         /** @return Whether this rule has a severity; typically checks do, and filters don't */
         @Nullable Boolean hasSeverity();
@@ -635,10 +658,11 @@ class CsDoclet {
      */
     public static Collection<Rule>
     rules(
-        final Collection<ClassDoc>       classDocs,
-        RootDoc                          rootDoc,
-        Consumer<? super OptionProvider> usedOptionProviders,
-        Html                             html
+        final Collection<ClassDoc>                  classDocs,
+        RootDoc                                     rootDoc,
+        Map<String /*quickfixClassName*/, Quickfix> allQuickfixes,
+        Consumer<? super OptionProvider>            usedOptionProviders,
+        Html                                        html
     ) {
 
         ClassDoc[] checkClasses  = CsDoclet.getCheckClasses(rootDoc);
@@ -670,7 +694,7 @@ class CsDoclet {
             try {
 
                 rules.add(
-                    CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, usedOptionProviders, html)
+                    CsDoclet.rule(ra, classDoc, rootDoc, familySingular, familyPlural, allQuickfixes, usedOptionProviders, html)
                 );
             } catch (Longjump l) {
                 ; // SUPPRESS CHECKSTYLE AvoidHidingCause
@@ -727,7 +751,7 @@ class CsDoclet {
         }
 
         // Notice that "RootDoc.classNamed()" finds only classes that are in one of the configured packages, or were
-        // implicitly loaded through the "-classpath". Classes that areon the "-classpath", but are not referenced
+        // implicitly loaded through the "-classpath". Classes that are on the "-classpath", but are not referenced
         // by other classes are NOT found! So we DO NOT check for "result.isEmpty()" here.
 
         return result.toArray(new ClassDoc[result.size()]);
@@ -786,17 +810,17 @@ class CsDoclet {
 
     /**
      * Parses a CheckStyle rule.
-     * @param usedOptionProviders
      */
     private static Rule
     rule(
-        AnnotationDesc                   ruleAnnotation,
-        final ClassDoc                   classDoc,
-        RootDoc                          rootDoc,
-        final String                     familySingular,
-        String                           familyPlural,
-        Consumer<? super OptionProvider> usedOptionProviders,
-        Html                             html
+        AnnotationDesc                              ruleAnnotation,
+        final ClassDoc                              classDoc,
+        RootDoc                                     rootDoc,
+        final String                                familySingular,
+        String                                      familyPlural,
+        Map<String /*quickfixClassName*/, Quickfix> allQuickfixes,
+        Consumer<? super OptionProvider>            usedOptionProviders,
+        Html                                        html
     ) throws Longjump {
 
         final String   group              = Annotations.getElementValue(ruleAnnotation, "group",        String.class);
@@ -869,21 +893,45 @@ class CsDoclet {
         }
 
         return new Rule() {
-            @Override public Doc                       ref()                { return classDoc;           }
-            @Override public String                    familySingular()     { return familySingular;     }
-            @Override public String                    familyPlural()       { return familyPlural;       }
-            @Override public String                    group()              { return group;              }
-            @Override public String                    groupName()          { return groupName;          }
-            @Override public String                    simpleName()         { return simpleName;         }
-            @Override public String                    name()               { return name;               }
-            @Override public String                    internalName()       { return internalName;       }
-            @Override public String                    parent()             { return parent;             }
-            @Override public String                    shortDescription()   { return shortDescription;   }
-            @Override public String                    longDescription()    { return longDescription;    }
-            @Override public Collection<RuleProperty>  properties()         { return properties;         }
-            @Override @Nullable public String[]        quickfixClassNames() { return quickfixClassNames; }
-            @Override @Nullable public Boolean         hasSeverity()        { return hasSeverity;        }
-            @Override public SortedMap<String, String> messages()           { return messages;           }
+            @Override public Doc                       ref()              { return classDoc;         }
+            @Override public String                    familySingular()   { return familySingular;   }
+            @Override public String                    familyPlural()     { return familyPlural;     }
+            @Override public String                    group()            { return group;            }
+            @Override public String                    groupName()        { return groupName;        }
+            @Override public String                    simpleName()       { return simpleName;       }
+            @Override public String                    name()             { return name;             }
+            @Override public String                    internalName()     { return internalName;     }
+            @Override public String                    parent()           { return parent;           }
+            @Override public String                    shortDescription() { return shortDescription; }
+            @Override public String                    longDescription()  { return longDescription;  }
+            @Override public Collection<RuleProperty>  properties()       { return properties;       }
+            @Override @Nullable public Boolean         hasSeverity()      { return hasSeverity;      }
+            @Override public SortedMap<String, String> messages()         { return messages;         }
+
+            @Override @Nullable public Quickfix[]
+            quickfixes() {
+
+                // Compute the set of quickfixes lazily here, because the "allQuickfixes" map is not complete initially.
+
+                if (quickfixClassNames == null) return null;
+
+                List<Quickfix> tmp = new ArrayList<Quickfix>();
+                for (String qfcn : quickfixClassNames) {
+                    Quickfix qf = allQuickfixes.get(qfcn);
+                    if (qf == null) {
+                        rootDoc.printWarning(
+                            familySingular
+                            + " \""
+                            + name
+                            + "\" refers to no-existent quickfix class \"" +
+                            qfcn
+                            + "\""
+                        );
+                    }
+                    tmp.add(qf);
+                }
+                return tmp.toArray(new Quickfix[tmp.size()]);
+            }
         };
     }
 
