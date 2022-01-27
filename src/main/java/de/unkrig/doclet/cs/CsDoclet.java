@@ -31,6 +31,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
@@ -133,6 +134,55 @@ class CsDoclet {
         if ("-linkoffline".equals(option))                        return 3;
         if ("-splitindex".equals(option))                         return 1;
 
+        // Standard doclet options which we ignore:
+        if ("--add-stylesheet".equals(option))           return 2;
+        if ("--allow-script-in-comments".equals(option)) return 1;
+        if ("-author".equals(option))                    return 1;
+//        if ("-bottom".equals(option))                    return 2;
+        if ("-charset".equals(option))                   return 2;
+//        if ("-d".equals(option))                         return 2;
+        if ("-docencoding".equals(option))               return 2;
+        if ("-docfilessubdirs".equals(option))           return 1;
+//        if ("-doctitle".equals(option))                  return 1;
+        if ("-excludedocfilessubdir".equals(option))     return 2;
+//        if ("-footer".equals(option))                    return 2;
+//        if ("--frames".equals(option))                   return 1;
+        if ("-group".equals(option))                     return 3;
+//        if ("-header".equals(option))                    return 2;
+        if ("-helpfile".equals(option))                  return 2;
+        if ("-html4".equals(option))                     return 1;
+        if ("-html5".equals(option))                     return 1;
+        if ("--javafx".equals(option))                   return 1;
+        if ("-javafx".equals(option))                    return 1;
+        if ("-keywords".equals(option))                  return 1;
+//        if ("-link".equals(option))                      return 2;
+//        if ("-linkoffline".equals(option))               return 3;
+        if ("-linksource".equals(option))                return 1;
+//        if ("--main-stylesheet".equals(option))          return 2;
+//        if ("-stylesheetfile".equals(option))            return 2;
+        if ("-nocomment".equals(option))                 return 1;
+        if ("-nodeprecated".equals(option))              return 1;
+        if ("-nodeprecatedlist".equals(option))          return 1;
+        if ("--no-frames".equals(option))                return 1;
+        if ("-nohelp".equals(option))                    return 1;
+        if ("-noindex".equals(option))                   return 1;
+        if ("-nonavbar".equals(option))                  return 1;
+        if ("-noqualifier".equals(option))               return 2;
+        if ("-nosince".equals(option))                   return 1;
+//        if ("-notimestamp".equals(option))               return 1;
+        if ("-notree".equals(option))                    return 1;
+        if ("--override-methods".equals(option))         return 2;
+        if ("-overview".equals(option))                  return 2;
+        if ("-serialwarn".equals(option))                return 1;
+        if ("-sourcetab".equals(option))                 return 2;
+//        if ("-splitindex".equals(option))                return 1;
+        if ("-tag".equals(option))                       return 2;
+        if ("-taglet".equals(option))                    return 2;
+        if ("-tagletpath".equals(option))                return 2;
+//        if ("-top".equals(option))                       return 2;
+        if ("-use".equals(option))                       return 1;
+        if ("-version".equals(option))                   return 1;
+//        if ("-windowtitle".equals(option))               return 2;
         return 0;
     }
 
@@ -202,7 +252,7 @@ class CsDoclet {
             } else
             if ("-linkoffline".equals(option[0])) {
                 URL targetUrl      = new URL(option[1] + '/');
-                URL packageListUrl = new URL(option[2] + '/');
+                URL packageListUrl = CsDoclet.newUrl(option[2] + '/');
 
                 Docs.readExternalJavadocs(targetUrl, packageListUrl, externalJavadocs, rootDoc);
             } else
@@ -370,6 +420,14 @@ class CsDoclet {
         }
 
         return true;
+    }
+
+    /**
+     * @param location Either a URL, or a file path
+     */
+    private static URL
+    newUrl(String location) throws MalformedURLException {
+        return location.matches("\\w{2,}:.*") ? new URL(location) : new File(location).toURI().toURL();
     }
 
     protected static boolean
@@ -950,8 +1008,9 @@ class CsDoclet {
                             qfcn
                             + "\""
                         );
+                    } else {
+                        tmp.add(qf);
                     }
-                    tmp.add(qf);
                 }
                 return tmp.toArray(new Quickfix[tmp.size()]);
             }
